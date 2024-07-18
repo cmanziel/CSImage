@@ -29,6 +29,8 @@ private:
 	unsigned int m_Width;
 	unsigned int m_Height;
 
+	GLuint m_CursorBuffer;
+
 	FILE* m_Image; // file pointer to the image file currently being edited
 	char* m_Path;
 };

@@ -1,9 +1,19 @@
 #version 430 core
 #extension GL_ARB_compute_shader : enable
 
+#define BRUSH_RADIUS 0
+
 layout(local_size_x = 16, local_size_y = 16) in; // every local_size_* is by default 1
 
 layout(binding = 0, rgba32f) uniform writeonly image2D imageOut;
+
+layout(std430, binding = 1) buffer cursorPos
+{
+	vec2 cursor_pos;
+};
+
+bool isInsideBrush(vec2 uv, vec2 cursor);
+bool isInsideInterval(float val, float start, float end);
 
 void main()
 {
@@ -14,5 +24,25 @@ void main()
 
 	ivec2 uv = ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
 
-	imageStore(imageOut, uv, vec4(1.0, 0.0, 0.0, 1.0));
+	// cast the cursor position coordinates to an int and check them against the current texture uv coordinate
+	if(isInsideBrush(uv, vec2(cursor_pos.x, dims.y - cursor_pos.y)))
+	{
+		imageStore(imageOut, uv, vec4(1.0, 0.0, 0.0, 1.0));
+	}
+}
+
+bool isInsideBrush(vec2 uv, vec2 cursor)
+{
+	if(isInsideInterval(uv.x, cursor.x - BRUSH_RADIUS, cursor.x + BRUSH_RADIUS) && isInsideInterval(uv.y, cursor.y - BRUSH_RADIUS, cursor.y + BRUSH_RADIUS))
+		return true;
+
+	return false;
+}
+
+bool isInsideInterval(float val, float start, float end)
+{
+	if(val >= start && val <= end)
+		return true;
+
+	return false;
 }

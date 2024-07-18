@@ -23,12 +23,27 @@ Window::Window(unsigned int width, unsigned int height)
     {
         throw std::runtime_error("error initializing glew\n");
     }
+
+    double xPos, yPos;
+
+    glfwGetCursorPos(m_GLFWwindow, &xPos, &yPos);
+
+    float pos[] = { xPos, yPos };
+
+    // move inside brush class
+    // generate buffer and bind it to the GL_SHADER_STORAGE_BUFFER binding point
+    glGenBuffers(1, &m_CursorBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * sizeof(float), pos, GL_STATIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_CursorBuffer);
 }
 
 Window::~Window()
 {
     if(m_Image != NULL)
         fclose(m_Image);
+
+    glDeleteBuffers(1, &m_CursorBuffer);
 }
 
 void Window::Update()
@@ -41,7 +56,7 @@ void Window::Update()
     float pos[] = { xPos, yPos };
 
     // better if the buffer is mapped before the main application loop and the only its value on the application side is modified, this modification through teh mapping will reflect on the GPU
-    //glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(float), pos);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(float), pos);
 }
 
 GLFWwindow* Window::GetGLFWwindow()

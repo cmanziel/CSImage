@@ -5,9 +5,12 @@
 #include "Renderer/Renderer.h"
 
 /* TODO:
-	* image load store extension required?
-	* iamge variable binding points?
-	* float rgba format
+	* brush radius as shader input variable
+	* cursor pos input variable
+	* two ways to dispatch:
+		- dispatch just one work group of local size also 1, do a for loop inside it that does imageStore on all the pixels around the cursor pos inside a BRUSH_RADIUS area 
+		- dispatch BRUSH_RADIUS ^ 2 work groups and calculate uv coordinates based on which invocation of the shader is running
+		Base uv coord is vec2(cursor_pos.x - BRUSH_RADIUS, cursor_pos.y - BRUSH_RADIUS), the next ones are baseuv.x + invoc_num, baseuv.y + invoc_num
 */
 
 /* TODO: compute shader
@@ -34,6 +37,8 @@ int main()
 	while (!glfwWindowShouldClose(glfwWin))
 	{
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		window.Update();
 
 		renderer.Draw();
 
