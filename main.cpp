@@ -10,7 +10,7 @@
 	* two ways to dispatch:
 		- dispatch just one work group of local size also 1, do a for loop inside it that does imageStore on all the pixels around the cursor pos inside a BRUSH_RADIUS area 
 		- dispatch BRUSH_RADIUS ^ 2 work groups and calculate uv coordinates based on which invocation of the shader is running
-		Base uv coord is vec2(cursor_pos.x - BRUSH_RADIUS, cursor_pos.y - BRUSH_RADIUS), the next ones are baseuv.x + invoc_num, baseuv.y + invoc_num
+		Base uv coord is vec2(cursor_pos.x - BRUSH_RADIUS, cursor_pos.y - BRUSH_RADIUS), the next ones are baseuv.x + invoc_num, baseuv.y + invoc_num, invoc_num could be gl_GlobalInvocationID
 */
 
 /* TODO: compute shader
@@ -29,7 +29,7 @@ int main()
 	// Renderer sets up the shader in its constructor
 	char path[] = "images/CSimage_0.png";
 
-	Window window(512, 512);
+	Window window(1280, 960);
 	GLFWwindow* glfwWin = window.GetGLFWwindow();
 
 	Renderer renderer(&window);
@@ -46,7 +46,8 @@ int main()
 		glfwSwapBuffers(glfwWin);
 
 		/* Poll for and process events */
-		glfwPollEvents();
+		glfwWaitEvents();
+		//glfwPollEvents();
 	}
 
 	return 0;

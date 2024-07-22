@@ -49,7 +49,12 @@ void Renderer::Draw()
 {
 	m_ComputeShader.Use();
 
-	m_ComputeShader.Dispatch(m_Window->GetWidth() / 16, m_Window->GetHeight() / 16, 1);
+	glUniform1i(glGetUniformLocation(m_ComputeShader.GetID(), "brushRadius"), BRUSH_RADIUS);
+
+	// dispatching just one work group and doing a for loop inside the compute shader to color multiple pixels is useless
+	// since the process doesn't benefit from using more threads in parallel
+	// dispatch BRUSH_RADIUS * BRUSH_RADIUS work groups
+	m_ComputeShader.Dispatch(BRUSH_RADIUS, BRUSH_RADIUS, 1);
 
 	m_VFShader.Use();
 

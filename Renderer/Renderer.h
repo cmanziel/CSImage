@@ -5,6 +5,8 @@
 #include "../Shader/VFShader.h"
 #include "../Window/Window.h"
 
+#define BRUSH_RADIUS 4
+
 class Renderer
 {
 public:

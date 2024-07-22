@@ -6,6 +6,11 @@
 #include "pnglib.h"
 #include <stdexcept>
 
+typedef struct {
+	double x;
+	double y;
+} cursor;
+
 class Window
 {
 public:
@@ -18,6 +23,8 @@ public:
 	unsigned int GetWidth();
 	unsigned int GetHeight();
 
+	cursor GetCursor();
+
 	//void KeyInput();
 	void WindowResize();
 	void CursorMovement();
@@ -29,6 +36,7 @@ private:
 	unsigned int m_Width;
 	unsigned int m_Height;
 
+	cursor m_Cursor;
 	GLuint m_CursorBuffer;
 
 	FILE* m_Image; // file pointer to the image file currently being edited
