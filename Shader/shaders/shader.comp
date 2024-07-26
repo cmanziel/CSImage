@@ -1,6 +1,9 @@
 #version 430 core
 #extension GL_ARB_compute_shader : enable
 
+#define DRAW 0
+#define ERASE 1
+
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in; // every local_size_* is by default 1
 
 layout(binding = 0, rgba32f) uniform writeonly image2D imageOut;
@@ -11,6 +14,7 @@ layout(std430, binding = 1) buffer cursorPos
 };
 
 layout(location = 3) uniform int brushRadius;
+layout(location = 4) uniform int drawFlag;
 
 void main()
 {
@@ -23,6 +27,9 @@ void main()
 
 	ivec2 uv = base_uv + ivec2(gl_GlobalInvocationID.xy);
 
-	imageStore(imageOut, uv, vec4(1.0, 0.0, 0.0, 1.0));
+	if(drawFlag == DRAW)
+		imageStore(imageOut, uv, vec4(1.0, 0.0, 0.0, 1.0));
+	else if(drawFlag == ERASE)
+		imageStore(imageOut, uv, vec4(0.0, 0.0, 0.0, 1.0));
 
 }
