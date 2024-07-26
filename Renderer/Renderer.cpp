@@ -47,14 +47,19 @@ Renderer::Renderer(Window* win)
 
 void Renderer::Draw()
 {
-	m_ComputeShader.Use();
+	if (m_Window->GetBrush()->GetState() != STATE_DRAW)
+	{
+		m_ComputeShader.Use();
 
-	glUniform1i(glGetUniformLocation(m_ComputeShader.GetID(), "brushRadius"), BRUSH_RADIUS);
+		int brushRadius = m_Window->GetBrush()->GetRadius();
 
-	// dispatching just one work group and doing a for loop inside the compute shader to color multiple pixels is useless
-	// since the process doesn't benefit from using more threads in parallel
-	// dispatch BRUSH_RADIUS * BRUSH_RADIUS work groups
-	m_ComputeShader.Dispatch(BRUSH_RADIUS, BRUSH_RADIUS, 1);
+		glUniform1i(glGetUniformLocation(m_ComputeShader.GetID(), "brushRadius"), brushRadius);
+
+		// dispatching just one work group and doing a for loop inside the compute shader to color multiple pixels is useless
+		// since the process doesn't benefit from using more threads in parallel
+		// dispatch BRUSH_RADIUS * BRUSH_RADIUS work groups
+		m_ComputeShader.Dispatch(brushRadius, brushRadius, 1);
+	}
 
 	m_VFShader.Use();
 
