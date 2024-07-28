@@ -31,7 +31,21 @@ Renderer::Renderer(Window* win)
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 	// access paramter has to be GL_READ_WRITE if a blit operation is called on the framebuffer to whcih the image is attached?
-	glBindImageTexture(0, m_RenderTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+	glBindImageTexture(0, m_RenderTexture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+
+	if (m_Window->GetImageData() != NULL)
+	{
+		glGenTextures(1, &m_Canvas);
+		glBindTexture(GL_TEXTURE_2D, m_Canvas);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_Window->GetWidth(), m_Window->GetHeight(), 0, GL_RGB, GL_UNSIGNED_BYTE, m_Window->GetImageData());
+
+		// texture completeness
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glBindImageTexture(1, m_Canvas, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+	}
 
 	// screen quad VBO
 	glGenBuffers(1, &m_ScreenQuadBuffer);
@@ -57,7 +71,10 @@ void Renderer::Draw()
 	// dispatching just one work group and doing a for loop inside the compute shader to color multiple pixels is useless
 	// since the process doesn't benefit from using more threads in parallel
 	// dispatch BRUSH_RADIUS * BRUSH_RADIUS work groups
-	m_ComputeShader.Dispatch(brushRadius, brushRadius, 1);
+	//m_ComputeShader.Dispatch(brushRadius, brushRadius, 1);
+
+	// dispatch the whole image pixel number for the canvas
+	m_ComputeShader.Dispatch(m_Window->GetWidth(), m_Window->GetHeight(), 1);
 
 	m_VFShader.Use();
 
@@ -75,5 +92,6 @@ void Renderer::Draw()
 Renderer::~Renderer()
 {
 	glDeleteTextures(1, &m_RenderTexture);
+	glDeleteTextures(1, &m_Canvas);
 	glDeleteBuffers(1, &m_ScreenQuadBuffer);
 }

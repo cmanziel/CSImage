@@ -15,9 +15,13 @@ public:
 
 private:
 	Window* m_Window;
+
 	ComputeShader m_ComputeShader;
 	VFShader m_VFShader;
+
 	GLuint m_RenderTexture;
+	GLuint m_Canvas; // image to be drawn onto
+
 	//GLuint m_Framebuffer;
 	GLuint m_ScreenQuadBuffer;
 };

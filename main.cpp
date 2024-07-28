@@ -27,7 +27,7 @@
 int main()
 {
 	// Renderer sets up the shader in its constructor
-	char path[] = "images/CSimage_0.png";
+	char path[] = "images/drawing_0.png";
 
 	Window window(path);
 	GLFWwindow* glfwWin = window.GetGLFWwindow();

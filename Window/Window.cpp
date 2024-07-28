@@ -10,8 +10,7 @@ Window::Window(char* path)
 
     if (m_Image == NULL)
     {
-        idat_data = NULL;
-        image_pixel_data = NULL;
+        m_ImageData = NULL;
         m_Width = 2000;
         m_Height = 1000;
     }
@@ -20,7 +19,12 @@ Window::Window(char* path)
         m_Width = image_get_width(m_Image);
         m_Height = image_get_height(m_Image);
 
-        image_pixel_data = decompress_image(m_Image);
+        unsigned char* filteredData = decompress_image(m_Image);
+
+        // m_ImageData still containts the filter method before every scanline of pixels, so concatenate just the pixel channels' data into one array
+        m_ImageData = concatenate_filtered_data(filteredData, m_Width, m_Height, CHANNELS_PER_PIXEL);
+
+        free(filteredData);
     }
 
     /* Initialize the library */
@@ -73,6 +77,8 @@ Window::~Window()
     if(m_Image != NULL)
         fclose(m_Image);
 
+    free(m_ImageData);
+
     delete m_Brush;
 
     glDeleteBuffers(1, &m_CursorBuffer);
@@ -96,6 +102,11 @@ unsigned int Window::GetWidth()
 unsigned int Window::GetHeight()
 {
     return m_Height;
+}
+
+unsigned char* Window::GetImageData()
+{
+    return m_ImageData;
 }
 
 cursor Window::GetCursor()

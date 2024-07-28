@@ -28,6 +28,7 @@ public:
 	GLFWwindow* GetGLFWwindow();
 	unsigned int GetWidth();
 	unsigned int GetHeight();
+	unsigned char* GetImageData();
 
 	cursor GetCursor();
 	Brush* GetBrush();
@@ -57,6 +58,7 @@ private:
 
 	FILE* m_Image; // file pointer to the image file currently being edited
 	char* m_Path;
+	unsigned char* m_ImageData;
 
 	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
