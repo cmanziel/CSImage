@@ -11,13 +11,17 @@ float quad[] = {
 };
 
 Renderer::Renderer(Window* win)
-	: m_ComputeShader("Shader/shaders/shader.comp"), m_VFShader("Shader/shaders/shader.vert", "Shader/shaders/shader.frag"), m_Window(win)
+	: m_ComputeShader("Shader/shaders/shader.comp"),
+	m_VFShader("Shader/shaders/shader.vert", "Shader/shaders/shader.frag"),
+	m_CanvasShader("Shader/shaders/canvas.comp"),
+	m_Window(win)
 {
 	unsigned int imageWidth = m_Window->GetWidth();
 	unsigned int imageHeight = m_Window->GetHeight();
 
 	m_ComputeShader.CreateProgram();
 	m_VFShader.CreateProgram();
+	m_CanvasShader.CreateProgram();
 
 	// set up the texture to render to
 	// assure the texture is complete (see https://www.khronos.org/opengl/wiki/Texture#Texture_completeness)
@@ -39,12 +43,22 @@ Renderer::Renderer(Window* win)
 		glBindTexture(GL_TEXTURE_2D, m_Canvas);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_Window->GetWidth(), m_Window->GetHeight(), 0, GL_RGB, GL_UNSIGNED_BYTE, m_Window->GetImageData());
 
-		// texture completeness
+		// for texture completeness
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glBindImageTexture(1, m_Canvas, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+
+		m_CanvasShader.Use();
+
+		//dispatch the number of image pixels threads for the canvas' shader
+		m_CanvasShader.Dispatch(m_Window->GetWidth(), m_Window->GetHeight(), 1);
+
+		// the whole image number of pixels is dispatch initially so that the m_RenderTexture already has the canvas data wrote to itself
+		// in this way only the brush area of pixel is dispatched when drawing
+		// otherwise without doing this the whole image would be dispatched and each uv checked if it was inside the brush area
+		// just dispatching the brush without initializing the canvas would result in a black canvas and the brush drawing the canvas when in the ERASE state
 	}
 
 	// screen quad VBO
@@ -68,13 +82,8 @@ void Renderer::Draw()
 	glUniform1i(glGetUniformLocation(m_ComputeShader.GetID(), "brushRadius"), brushRadius);
 	glUniform1i(glGetUniformLocation(m_ComputeShader.GetID(), "drawFlag"), m_Window->GetBrush()->GetState());
 
-	// dispatching just one work group and doing a for loop inside the compute shader to color multiple pixels is useless
-	// since the process doesn't benefit from using more threads in parallel
-	// dispatch BRUSH_RADIUS * BRUSH_RADIUS work groups
-	//m_ComputeShader.Dispatch(brushRadius, brushRadius, 1);
-
 	// dispatch the whole image pixel number for the canvas
-	m_ComputeShader.Dispatch(m_Window->GetWidth(), m_Window->GetHeight(), 1);
+	m_ComputeShader.Dispatch(brushRadius, brushRadius, 1);
 
 	m_VFShader.Use();
 

@@ -6,8 +6,8 @@
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in; // every local_size_* is by default 1
 
-layout(binding = 0, rgba32f) uniform writeonly image2D imageOut;
-layout(binding = 1, rgba32f) uniform readonly image2D imageIn;
+layout(binding = 0, rgba32f) uniform writeonly image2D edited;
+layout(binding = 1, rgba32f) uniform readonly image2D canvas;
 
 layout(std430, binding = 1) buffer cursorPos
 {
@@ -21,32 +21,18 @@ void main()
 {
 	// get the UV coordinates of the current thread to write to the corresponding location of the texture's image
 	// UVs for the image come from the built in shader variables gl_WorkGroupSize
-
 	
-	ivec2 dims = imageSize(imageIn);
+	ivec2 dims = imageSize(canvas);
 
-	/*
 	ivec2 base_uv = ivec2(int(cursor_pos.x) - brushRadius, int(dims.y - cursor_pos.y) - brushRadius);
 
 	ivec2 uv = base_uv + ivec2(gl_GlobalInvocationID.xy);
 
 	if(drawFlag == DRAW)
-		imageStore(imageOut, uv, vec4(1.0, 0.0, 0.0, 1.0));
+		imageStore(edited, uv, vec4(0.0, 0.0, 1.0, 1.0));
 	else if(drawFlag == ERASE)
-		imageStore(imageOut, uv, vec4(0.0, 0.0, 0.0, 1.0));
-
-	*/
-
-	ivec2 uv = ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
-
-	vec4 canvas_pixel_color = imageLoad(imageIn, uv);
-
-	// image is passed as a series of scanline from top-left to bottom while the (0, 0) uv coordinate is at the bottom-left
-	// so flip the y axis before the store operation
-	uv = ivec2(gl_GlobalInvocationID.x, dims.y - gl_GlobalInvocationID.y);
-	
-	if(canvas_pixel_color != vec4(0.0, 0.0, 0.0, 0.0))
-		imageStore(imageOut, uv, canvas_pixel_color);
-	else
-		imageStore(imageOut, uv, vec4(0.0, 0.0, 1.0, 1.0));
+	{
+		vec4 canvas_pixel_color = imageLoad(canvas, ivec2(uv.x, dims.y - uv.y));
+		imageStore(edited, uv, canvas_pixel_color);
+	}
 }

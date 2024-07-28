@@ -18,6 +18,7 @@ private:
 
 	ComputeShader m_ComputeShader;
 	VFShader m_VFShader;
+	ComputeShader m_CanvasShader;
 
 	GLuint m_RenderTexture;
 	GLuint m_Canvas; // image to be drawn onto
