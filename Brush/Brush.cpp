@@ -51,7 +51,7 @@ void Brush::SetRadius(int mod)
 
 	//m_Radius = m_Radius + scaling_factor < 0 ? 0 : m_Radius + scaling_factor;
 
-	m_Radius += mod;
+	m_Radius = m_Radius == 0 ? 1 : m_Radius + mod;
 }
 
 color Brush::GetColor()

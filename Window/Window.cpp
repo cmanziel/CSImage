@@ -21,10 +21,16 @@ Window::Window(char* path)
 
         unsigned char* filteredData = decompress_image(m_Image);
 
-        // m_ImageData still containts the filter method before every scanline of pixels, so concatenate just the pixel channels' data into one array
-        m_ImageData = concatenate_filtered_data(filteredData, m_Width, m_Height, CHANNELS_PER_PIXEL);
+        // error handling for wrong decompression
+        if (filteredData != NULL)
+        {
+            // m_ImageData still containts the filter method before every scanline of pixels, so concatenate just the pixel channels' data into one array
+            m_ImageData = concatenate_filtered_data(filteredData, m_Width, m_Height, CHANNELS_PER_PIXEL);
 
-        free(filteredData);
+            free(filteredData);
+        }
+        else
+            m_ImageData = NULL;
     }
 
     /* Initialize the library */
@@ -165,6 +171,9 @@ void Window::KeyCallback(int key, int scancode, int action, int mods)
         {
         case GLFW_KEY_D:
             m_Brush->ChangeState(STATE_DRAW);
+            break;
+        case GLFW_KEY_S:
+            m_Brush->ChangeState(STATE_SOBEL);
             break;
         case GLFW_KEY_E:
             m_Brush->ChangeState(STATE_ERASE);
