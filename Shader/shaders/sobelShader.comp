@@ -1,0 +1,110 @@
+#version 430 core
+#extension GL_ARB_compute_shader : enable
+
+#define STATE_CALCULATE_KERNELS 0
+#define STATE_DRAW_PIXEL 1
+#define MAX_RADIUS 200
+#define SOBEL_CLAMP_FLOAT_VALUE 5.6568
+
+// mats stored in colum-major order: define column by column
+mat3 sobel_kernel_Gx = mat3(
+	-1.0, -2.0, -1.0,
+	0.0, 0.0, 0.0,
+	1.0, 2.0, 1.0
+);
+
+mat3 sobel_kernel_Gy = mat3(
+	-1.0, 0.0, 1.0,
+	-2.0, 0.0, 2.0,
+	-1.0, 0.0, 1.0
+);
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in; // every local_size_* is by default 1
+
+layout(binding = 0, rgba32f) uniform coherent image2D edited;
+layout(binding = 1, rgba32f) uniform readonly image2D canvas;
+
+layout(std430, binding = 2) buffer cursorPos
+{
+	vec2 cursor_pos;
+};
+
+layout(std430, binding = 3) restrict buffer brush_area_pixels
+{
+	vec4 grid[MAX_RADIUS * MAX_RADIUS];
+};
+
+layout(location = 3) uniform int brushRadius;
+layout(location = 4) uniform int state;
+
+vec4 edge_pixel(ivec2 uv);
+float kernel_mult(ivec2 pixel_uv, int channel, mat3 kernel);
+
+void main()
+{
+	ivec2 dims = imageSize(canvas);
+
+	ivec2 base_uv = ivec2(int(cursor_pos.x) - brushRadius, int(dims.y - cursor_pos.y) - brushRadius);
+
+	ivec2 uv = base_uv + ivec2(gl_GlobalInvocationID.xy);
+
+	uvec3 gwid = gl_WorkGroupID;
+	uint gridIndex = gwid.z * gl_NumWorkGroups.y * gl_NumWorkGroups.x + gwid.y * gl_NumWorkGroups.x + gwid.x;
+
+	if(state == STATE_CALCULATE_KERNELS)
+		grid[gridIndex] = edge_pixel(uv);
+	else
+		imageStore(edited, uv, grid[gridIndex]);
+}
+
+vec4 edge_pixel(ivec2 uv)
+{
+	// imageLoad with an out of boundary coordinate returns an all zeroes vec4
+	// so for the edge pixels of the imagedo the kernel multiplication with out of bounds values as for the other pixels
+
+	vec4 result;
+	float sum = 0;
+
+	// for each of the rgb channels compute the kernel calculation
+	for(int i = 0; i < 3; i++)
+	{
+		float Gx = kernel_mult(uv, i, sobel_kernel_Gx);
+		float Gy = kernel_mult(uv, i, sobel_kernel_Gy);
+
+		result[i] = sqrt(Gx * Gx + Gy * Gy) / SOBEL_CLAMP_FLOAT_VALUE;
+		sum += result[i];
+	}
+
+	result.xyz = vec3(sum / 3);
+
+	return result;
+}
+
+float kernel_mult(ivec2 pixel_uv, int ch, mat3 kernel)
+{
+	// access the pixel's 3x3 surrounding grid
+	// multiply the imageLoad return values for the grid with the respective kernel values
+	// sum all of them
+	// sqrt(Gx ^ 2 + Gy ^ 2)
+	// clamp to [0, 1]
+
+	float kernel_sum = 0.0;
+	ivec2 dims = imageSize(edited);
+
+	for(int y = -1; y < 2; y++)
+	{
+		for(int x = -1; x < 2; x++)
+		{
+			ivec2 uv = pixel_uv + ivec2(x, y);
+
+			vec4 current_color = imageLoad(edited, ivec2(uv.x, uv.y));
+			
+			// for applying the effect to the base canvas image:
+			//vec4 current_color = imageLoad(canvas, ivec2(uv.x, dims.y - uv.y));
+
+			kernel_sum += current_color[ch] * kernel[x + 1][y + 1];
+		}
+	}
+
+	return kernel_sum;
+}

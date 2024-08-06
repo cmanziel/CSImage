@@ -23,6 +23,8 @@ public:
 	Window(char* path);
 	~Window();
 
+	void InitWindow();
+
 	void Update();
 
 	GLFWwindow* GetGLFWwindow();

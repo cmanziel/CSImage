@@ -5,7 +5,28 @@ bool left = false;
 Window::Window(char* path)
     : m_Path(path), m_State(STATE_INACTIVE)
 {
-    m_Image = fopen(path, "rb");
+    InitWindow();
+
+    glfwGetCursorPos(m_GLFWwindow, &m_Cursor.x, &m_Cursor.y);
+
+    float pos[] = { m_Cursor.x, m_Cursor.y };
+
+    m_Brush = new Brush(m_Cursor.x, m_Cursor.y);
+
+    // move inside brush class
+    // generate buffer and bind it to the GL_SHADER_STORAGE_BUFFER binding point
+    glGenBuffers(1, &m_CursorBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * sizeof(float), pos, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_CursorBuffer);
+
+    if (m_Image != NULL)
+        fclose(m_Image);
+}
+
+void Window::InitWindow()
+{
+    m_Image = fopen(m_Path, "rb");
     unsigned char* idat_data, * image_pixel_data;
 
     if (m_Image == NULL)
@@ -60,22 +81,6 @@ Window::Window(char* path)
     glfwSetInputMode(m_GLFWwindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     if (glfwRawMouseMotionSupported())
         glfwSetInputMode(m_GLFWwindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-
-    glfwGetCursorPos(m_GLFWwindow, &m_Cursor.x, &m_Cursor.y);
-
-    float pos[] = { m_Cursor.x, m_Cursor.y };
-
-    m_Brush = new Brush(m_Cursor.x, m_Cursor.y);
-
-    // move inside brush class
-    // generate buffer and bind it to the GL_SHADER_STORAGE_BUFFER binding point
-    glGenBuffers(1, &m_CursorBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * sizeof(float), pos, GL_STATIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_CursorBuffer);
-
-    if (m_Image != NULL)
-        fclose(m_Image);
 }
 
 Window::~Window()
@@ -159,7 +164,7 @@ void Window::CursorMovement()
 
     // bind the buffer first
     // better if the buffer is mapped before the main application loop and the only its value on the application side is modified, this modification through teh mapping will reflect on the GPU
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_CursorBuffer);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_CursorBuffer);
     glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(float), pos);
 }
 

@@ -31,7 +31,7 @@ unsigned int Shader::GetID()
 	return m_ID;
 }
 
-void Shader::Use()
+void Shader::Use(GLuint programID)
 {
-	glUseProgram(m_ID);
+	glUseProgram(programID);
 }

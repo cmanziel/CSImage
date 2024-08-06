@@ -3,40 +3,19 @@
 
 #define DRAW 0
 #define ERASE 1
-#define EDGE_DETECTION 3
-#define BLUR 4
-
-#define SOBEL_CLAMP_FLOAT_VALUE 5.6568
-
-// mats stored in colum-major order: define column by column
-mat3 sobel_kernel_Gx = mat3(
-	-1.0, -2.0, -1.0,
-	0.0, 0.0, 0.0,
-	1.0, 2.0, 1.0
-);
-
-mat3 sobel_kernel_Gy = mat3(
-	-1.0, 0.0, 1.0,
-	-2.0, 0.0, 2.0,
-	-1.0, 0.0, 1.0
-);
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in; // every local_size_* is by default 1
 
-layout(binding = 0, rgba32f) uniform restrict image2D edited;
+layout(binding = 0, rgba32f) uniform writeonly image2D edited;
 layout(binding = 1, rgba32f) uniform readonly image2D canvas;
 
-layout(std430, binding = 1) buffer cursorPos
+layout(std430, binding = 2) buffer cursorPos
 {
 	vec2 cursor_pos;
 };
 
 layout(location = 3) uniform int brushRadius;
 layout(location = 4) uniform int drawFlag;
-
-vec4 blur_pixel();
-vec4 edge_pixel(ivec2 uv);
-float kernel_mult(ivec2 pixel_uv, int channel, mat3 kernel);
 
 void main()
 {
@@ -49,16 +28,6 @@ void main()
 
 	ivec2 uv = base_uv + ivec2(gl_GlobalInvocationID.xy);
 
-	/*
-	if(drawFlag == DRAW)
-		imageStore(edited, uv, vec4(0.0, 0.0, 1.0, 1.0));
-	else if(drawFlag == ERASE)
-	{
-		vec4 canvas_pixel_color = imageLoad(canvas, ivec2(uv.x, dims.y - uv.y));
-		imageStore(edited, uv, canvas_pixel_color);
-	}
-	*/
-
 	switch(drawFlag)
 	{
 		case DRAW:
@@ -69,59 +38,5 @@ void main()
 			vec4 canvas_pixel_color = imageLoad(canvas, ivec2(uv.x, dims.y - uv.y));
 			imageStore(edited, uv, canvas_pixel_color);
 		} break;
-
-		case EDGE_DETECTION: {
-			vec4 color = edge_pixel(uv);
-			imageStore(edited, uv, color);
-		} break;
 	}
-}
-
-vec4 edge_pixel(ivec2 uv)
-{
-	// imageLoad with an out of boundary coordinate returns an all zeroes vec4
-	// so for the edge pixels of the imagedo the kernel multiplication with out of bounds values as for the other pixels
-
-	vec4 result;
-	float sum = 0;
-
-	// for each of the rgb channels compute the kernel calculation
-	for(int i = 0; i < 3; i++)
-	{
-		float Gx = kernel_mult(uv, i, sobel_kernel_Gx);
-		float Gy = kernel_mult(uv, i, sobel_kernel_Gy);
-
-		result[i] = sqrt(Gx * Gx + Gy * Gy) / SOBEL_CLAMP_FLOAT_VALUE;
-		sum += result[i];
-	}
-
-	result.xyz = vec3(sum / 3);
-
-	return result;
-}
-
-float kernel_mult(ivec2 pixel_uv, int ch, mat3 kernel)
-{
-	// access the pixel's 3x3 surrounding grid
-	// multiply the imageLoad return values for the grid with the respective kernel values
-	// sum all of them
-	// sqrt(Gx ^ 2 + Gy ^ 2)
-	// clamp to [0, 1]
-
-	float kernel_sum = 0.0;
-
-	for(int y = -1; y < 2; y++)
-	{
-		for(int x = -1; x < 2; x++)
-		{
-			ivec2 uv = pixel_uv + ivec2(x, y);
-
-			ivec2 dims = imageSize(canvas);
-			vec4 current_color = imageLoad(canvas, ivec2(uv.x, dims.y - uv.y));
-
-			kernel_sum += current_color[ch] * kernel[x + 1][y + 1];
-		}
-	}
-
-	return kernel_sum;
 }

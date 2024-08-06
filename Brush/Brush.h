@@ -6,6 +6,7 @@
 
 #define CHANNELS_PER_PIXEL 3
 #define BRUSH_RADIUS 4
+#define MAX_BRUSH_RADIUS 100
 
 typedef struct
 {
@@ -19,13 +20,13 @@ typedef struct {
 	uint8_t b;
 } color;
 
+#define DELTA_AREA_RADIUS 0
+
 enum brush_state
 {
 	STATE_DRAW, STATE_ERASE, STATE_INACTIVE, STATE_SOBEL
 };
 
-#define DELTA_AREA_RADIUS 0
-// could also be static class
 class Brush
 {
 public:
@@ -46,7 +47,6 @@ public:
 	color GetColor();
 
 	bool IsPointInside(int grid_point_x, int grid_point_y);
-
 private:
 	int m_Radius;
 

@@ -10,11 +10,12 @@ public:
 	ComputeShader(std::string csPath);
 
 	void CreateProgram() override;
-
 	void Dispatch(unsigned int xGroups, unsigned int yGroups, unsigned int zGroups); // call glCOmputeDispatch for the compute shader
 
-private:
+	virtual void Execute() = 0;
+
 	std::string m_csSource;
+private:
 };
 
 #endif // !CSHADER_H
