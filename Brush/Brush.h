@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 #define CHANNELS_PER_PIXEL 3
-#define BRUSH_RADIUS 4
+#define BRUSH_RADIUS 50
 #define MAX_BRUSH_RADIUS 100
 
 typedef struct
