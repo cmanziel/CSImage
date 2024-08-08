@@ -1,11 +1,11 @@
 #ifndef RENDERER_H
-
 #define RENDERER_H
-#include "../Shader/ComputeShader.h"
-#include "../Shader/VFShader.h"
-#include "../Window/Window.h"
 
-#define BRUSH_RADIUS 4
+#include "../Shader/VFShader.h"
+#include "../Shader/SobelShader.h"
+#include "../Shader/DrawEraseShader.h"
+#include "../Shader/CanvasShader.h"
+#include "../Window/Window.h"
 
 class Renderer
 {
@@ -13,13 +13,23 @@ public:
 	Renderer(Window* win);
 	~Renderer();
 
+	void SelectShader();
+
 	void Draw();
 
 private:
 	Window* m_Window;
-	ComputeShader m_ComputeShader;
+
+	DrawEraseShader m_DrawEraseShader;
 	VFShader m_VFShader;
+	CanvasShader m_CanvasShader;
+	SobelShader m_SobelShader;
+
+	ComputeShader* m_CurrentShader;
+
 	GLuint m_RenderTexture;
+	GLuint m_Canvas; // image to be drawn onto
+
 	//GLuint m_Framebuffer;
 	GLuint m_ScreenQuadBuffer;
 };

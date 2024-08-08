@@ -11,13 +11,20 @@ float quad[] = {
 };
 
 Renderer::Renderer(Window* win)
-	: m_ComputeShader("Shader/shaders/shader.comp"), m_VFShader("Shader/shaders/shader.vert", "Shader/shaders/shader.frag"), m_Window(win)
+	: m_DrawEraseShader("Shader/shaders/shader.comp"),
+	m_VFShader("Shader/shaders/shader.vert", "Shader/shaders/shader.frag"),
+	m_CanvasShader("Shader/shaders/canvas.comp"),
+	m_SobelShader("Shader/shaders/sobelShader.comp", win->GetWidth(), win->GetHeight()),
+	m_CurrentShader(NULL),
+	m_Window(win)
 {
 	unsigned int imageWidth = m_Window->GetWidth();
 	unsigned int imageHeight = m_Window->GetHeight();
 
-	m_ComputeShader.CreateProgram();
+	m_CanvasShader.CreateProgram();
 	m_VFShader.CreateProgram();
+	m_DrawEraseShader.CreateProgram();
+	m_SobelShader.CreateProgram();
 
 	// set up the texture to render to
 	// assure the texture is complete (see https://www.khronos.org/opengl/wiki/Texture#Texture_completeness)
@@ -33,6 +40,29 @@ Renderer::Renderer(Window* win)
 	// access paramter has to be GL_READ_WRITE if a blit operation is called on the framebuffer to whcih the image is attached?
 	glBindImageTexture(0, m_RenderTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
 
+	if (m_Window->GetImageData() != NULL)
+	{
+		glGenTextures(1, &m_Canvas);
+		glBindTexture(GL_TEXTURE_2D, m_Canvas);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, imageWidth, imageHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, m_Window->GetImageData());
+
+		// for texture completeness
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glBindImageTexture(1, m_Canvas, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+
+		Shader::Use(m_CanvasShader.GetID());
+		m_CanvasShader.SetDimensions(imageWidth, imageHeight);
+		m_CanvasShader.Execute();
+
+		// the whole image number of pixels is dispatch initially so that the m_RenderTexture already has the canvas data wrote to itself
+		// in this way only the brush area of pixel is dispatched when drawing
+		// otherwise without doing this the whole image would be dispatched and each uv checked if it was inside the brush area
+		// just dispatching the brush without initializing the canvas would result in a black canvas and the brush drawing the canvas when in the ERASE state
+	}
+
 	// screen quad VBO
 	glGenBuffers(1, &m_ScreenQuadBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, m_ScreenQuadBuffer);
@@ -45,18 +75,48 @@ Renderer::Renderer(Window* win)
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 }
 
+void Renderer::SelectShader()
+{
+	uint8_t state = m_Window->GetBrush()->GetState();
+
+	cursor curs = m_Window->GetCursor();
+	unsigned int radius = m_Window->GetBrush()->GetRadius();
+	float cursorPos[2] = { curs.x, curs.y };
+
+	switch (state)
+	{
+	case STATE_DRAW: {
+		Shader::Use(m_DrawEraseShader.GetID());
+		m_DrawEraseShader.UpdateInputs(radius, cursorPos, state);
+		m_CurrentShader = &m_DrawEraseShader;
+	} break;
+	case STATE_ERASE: {
+		Shader::Use(m_DrawEraseShader.GetID());
+		m_DrawEraseShader.UpdateInputs(radius, cursorPos, state);
+		m_CurrentShader = &m_DrawEraseShader;
+	} break;
+	case STATE_SOBEL: {
+		Shader::Use(m_SobelShader.GetID());
+		m_SobelShader.UpdateInputs(radius, cursorPos);
+		// update only at the frame when the brush state changes to STATE_SOBEL
+		if(m_CurrentShader != &m_SobelShader)
+			m_SobelShader.UpdateSobelCanvas();
+		m_CurrentShader = &m_SobelShader;
+	} break;
+	case STATE_INACTIVE:
+		m_CurrentShader = NULL;
+		break;
+	}
+}
+
 void Renderer::Draw()
 {
-	m_ComputeShader.Use();
+	SelectShader();
 
-	glUniform1i(glGetUniformLocation(m_ComputeShader.GetID(), "brushRadius"), BRUSH_RADIUS);
+	if (m_CurrentShader != NULL)
+		m_CurrentShader->Execute();
 
-	// dispatching just one work group and doing a for loop inside the compute shader to color multiple pixels is useless
-	// since the process doesn't benefit from using more threads in parallel
-	// dispatch BRUSH_RADIUS * BRUSH_RADIUS work groups
-	m_ComputeShader.Dispatch(BRUSH_RADIUS, BRUSH_RADIUS, 1);
-
-	m_VFShader.Use();
+	Shader::Use(m_VFShader.GetID());
 
 	// bind the render texture that will be applied to the quad
 	glActiveTexture(GL_TEXTURE0);
@@ -72,5 +132,6 @@ void Renderer::Draw()
 Renderer::~Renderer()
 {
 	glDeleteTextures(1, &m_RenderTexture);
+	glDeleteTextures(1, &m_Canvas);
 	glDeleteBuffers(1, &m_ScreenQuadBuffer);
 }

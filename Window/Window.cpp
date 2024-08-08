@@ -2,9 +2,58 @@
 
 bool left = false;
 
-Window::Window(unsigned int width, unsigned int height)
-    : m_Width(width), m_Height(height)
+Window::Window(char* path)
+    : m_Path(path), m_State(STATE_INACTIVE)
 {
+    InitWindow();
+
+    glfwGetCursorPos(m_GLFWwindow, &m_Cursor.x, &m_Cursor.y);
+
+    float pos[] = { m_Cursor.x, m_Cursor.y };
+
+    m_Brush = new Brush(m_Cursor.x, m_Cursor.y);
+
+    // move inside brush class
+    // generate buffer and bind it to the GL_SHADER_STORAGE_BUFFER binding point
+    glGenBuffers(1, &m_CursorBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorBuffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * sizeof(float), pos, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_CursorBuffer);
+
+    if (m_Image != NULL)
+        fclose(m_Image);
+}
+
+void Window::InitWindow()
+{
+    m_Image = fopen(m_Path, "rb");
+    unsigned char* idat_data, * image_pixel_data;
+
+    if (m_Image == NULL)
+    {
+        m_ImageData = NULL;
+        m_Width = 2000;
+        m_Height = 1000;
+    }
+    else
+    {
+        m_Width = image_get_width(m_Image);
+        m_Height = image_get_height(m_Image);
+
+        unsigned char* filteredData = decompress_image(m_Image);
+
+        // error handling for wrong decompression
+        if (filteredData != NULL)
+        {
+            // m_ImageData still containts the filter method before every scanline of pixels, so concatenate just the pixel channels' data into one array
+            m_ImageData = concatenate_filtered_data(filteredData, m_Width, m_Height, CHANNELS_PER_PIXEL);
+
+            free(filteredData);
+        }
+        else
+            m_ImageData = NULL;
+    }
+
     /* Initialize the library */
     if (!glfwInit())
         throw std::runtime_error("error initializing glfw");
@@ -21,6 +70,9 @@ Window::Window(unsigned int width, unsigned int height)
     /* Make the window's context current */
     glfwMakeContextCurrent(m_GLFWwindow);
 
+    glfwSetWindowUserPointer(m_GLFWwindow, this);
+    glfwSetKeyCallback(m_GLFWwindow, key_callback);
+
     if (glewInit() != GLEW_OK)
     {
         throw std::runtime_error("error initializing glew\n");
@@ -29,17 +81,6 @@ Window::Window(unsigned int width, unsigned int height)
     glfwSetInputMode(m_GLFWwindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     if (glfwRawMouseMotionSupported())
         glfwSetInputMode(m_GLFWwindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-
-    glfwGetCursorPos(m_GLFWwindow, &m_Cursor.x, &m_Cursor.y);
-
-    float pos[] = { m_Cursor.x, m_Cursor.y };
-
-    // move inside brush class
-    // generate buffer and bind it to the GL_SHADER_STORAGE_BUFFER binding point
-    glGenBuffers(1, &m_CursorBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * sizeof(float), pos, GL_STATIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_CursorBuffer);
 }
 
 Window::~Window()
@@ -47,51 +88,16 @@ Window::~Window()
     if(m_Image != NULL)
         fclose(m_Image);
 
+    free(m_ImageData);
+
+    delete m_Brush;
+
     glDeleteBuffers(1, &m_CursorBuffer);
 }
 
 void Window::Update()
 {
-    // if cursor enters the window disable it
-
-    glfwGetCursorPos(m_GLFWwindow, &m_Cursor.x, &m_Cursor.y);
-
-    if (m_Cursor.x <= 0.0 || m_Cursor.x >= (float)(m_Width - 1) || m_Cursor.y <= 0.0 || m_Cursor.y >= (float)(m_Height - 1))
-    {
-        if (!left)
-        {
-            glfwSetInputMode(m_GLFWwindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            glfwSetCursorPos(m_GLFWwindow, m_Cursor.x + 1.0, m_Cursor.y + 1.0);
-        }
-
-        left = true;
-    }
-    else
-    {
-        glfwSetInputMode(m_GLFWwindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        if (glfwRawMouseMotionSupported())
-            glfwSetInputMode(m_GLFWwindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-        left = false;
-    }
-
-    printf("x: %f\ty: %f\n", m_Cursor.x, m_Cursor.y);
-
-    float pos[] = { m_Cursor.x, m_Cursor.y };
-
-    // better if the buffer is mapped before the main application loop and the only its value on the application side is modified, this modification through teh mapping will reflect on the GPU
-    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(float), pos);
-
-    if(glfwGetKey(m_GLFWwindow, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(m_GLFWwindow, GLFW_TRUE);
-
-    //if (glfwGetWindowAttrib(m_GLFWwindow, GLFW_HOVERED))
-    //{
-    //    printf("entered\n");
-    //}
-    //else
-    //{
-    //    printf("left\n");
-    //}
+    CursorMovement();
 }
 
 GLFWwindow* Window::GetGLFWwindow()
@@ -109,7 +115,91 @@ unsigned int Window::GetHeight()
     return m_Height;
 }
 
+unsigned char* Window::GetImageData()
+{
+    return m_ImageData;
+}
+
 cursor Window::GetCursor()
 {
     return m_Cursor;
+}
+
+Brush* Window::GetBrush()
+{
+    return m_Brush;
+}
+
+void Window::CursorMovement()
+{
+    //get the last cursor positions
+    glfwGetCursorPos(m_GLFWwindow, &m_Cursor.x, &m_Cursor.y);
+
+    // cursor outside window's client area
+    if (m_Cursor.x <= 0.0 || m_Cursor.x >= (float)(m_Width - 1) || m_Cursor.y <= 0.0 || m_Cursor.y >= (float)(m_Height - 1))
+    {
+        m_State = STATE_CURSOR_OUTSIDE;
+
+        if (!left)
+        {
+            glfwSetInputMode(m_GLFWwindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            glfwSetCursorPos(m_GLFWwindow, m_Cursor.x + 1.0, m_Cursor.y + 1.0);
+        }
+
+        left = true;
+
+        return;
+    }
+    else
+    {
+        m_State = STATE_CURSOR_INSIDE;
+
+        glfwSetInputMode(m_GLFWwindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        if (glfwRawMouseMotionSupported())
+            glfwSetInputMode(m_GLFWwindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        left = false;
+    }
+
+    float pos[] = { m_Cursor.x, m_Cursor.y };
+
+    // bind the buffer first
+    // better if the buffer is mapped before the main application loop and the only its value on the application side is modified, this modification through teh mapping will reflect on the GPU
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_CursorBuffer);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(float), pos);
+}
+
+void Window::KeyCallback(int key, int scancode, int action, int mods)
+{
+    if (action == GLFW_PRESS || action == GLFW_REPEAT)
+    {
+        switch (key)
+        {
+        case GLFW_KEY_D:
+            m_Brush->ChangeState(STATE_DRAW);
+            break;
+        case GLFW_KEY_S:
+            m_Brush->ChangeState(STATE_SOBEL);
+            break;
+        case GLFW_KEY_E:
+            m_Brush->ChangeState(STATE_ERASE);
+            break;
+        case GLFW_KEY_UP:
+            m_Brush->SetRadius(+1);
+            break;
+        case GLFW_KEY_DOWN:
+            m_Brush->SetRadius(-1);
+            break;
+        case GLFW_KEY_P:
+            TakeSnapshot();
+            break;
+        case GLFW_KEY_ESCAPE:
+            glfwSetWindowShouldClose(m_GLFWwindow, GLFW_TRUE);
+        }
+    }
+}
+
+void Window::TakeSnapshot()
+{
+    // retrieve data from the texture object modified in the compute shader
+
 }

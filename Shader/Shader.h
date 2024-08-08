@@ -8,6 +8,11 @@
 
 #include <GL/glew.h>
 
+typedef struct {
+	GLuint id;
+	short binding_point;
+} SSBO;
+
 class Shader
 {
 public:
@@ -17,7 +22,7 @@ public:
 	virtual void CreateProgram() = 0;
 	static unsigned int CompileShader(unsigned int type, std::string source);
 
-	void Use(); // use the program to which all the shaders are attached
+	static void Use(GLuint programID); // use the program to which all the shaders are attached
 
 	unsigned int m_ID;
 private:

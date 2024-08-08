@@ -4,32 +4,28 @@
 #include "Window/Window.h"
 #include "Renderer/Renderer.h"
 
-/* TODO:
-	* brush radius as shader input variable
-	* cursor pos input variable
-	* two ways to dispatch:
-		- dispatch just one work group of local size also 1, do a for loop inside it that does imageStore on all the pixels around the cursor pos inside a BRUSH_RADIUS area 
-		- dispatch BRUSH_RADIUS ^ 2 work groups and calculate uv coordinates based on which invocation of the shader is running
-		Base uv coord is vec2(cursor_pos.x - BRUSH_RADIUS, cursor_pos.y - BRUSH_RADIUS), the next ones are baseuv.x + invoc_num, baseuv.y + invoc_num, invoc_num could be gl_GlobalInvocationID
+/* TODO: different programs for different brush states
+	* state machine for the renderer
+	* keep a current shader field so that its use function will be called accordingly
 */
 
-/* TODO: compute shader
-	* input variables:
-		- the grid of points, the compute shader should be able to modify them
-		- brush position and dimension, some kind of structure for the brush buffer
-		- brush structure should include the color for the points drawn
-		- buffer object for the neighbouring pixels for constructing the matrices for effects like blur and edge detection
 
-	* maybe map the grid of points with glMapBuffer so that the grid data comes to the shader stage modified without more calls to gl functions
-	* some "screen refresh" functionality so that the brush could also not leave a trace of points modified
+/* TODO: edge detection on edited image
+	* the problem with doing edge detection on the edited image is that imageStore operations get the value of a pixel that has just modified this dispatch of the program
+	* whereas it should be done on the result edited image from the last dispatch
+	SOLUTION?
+	* splitting the process in two: in the first half all the colors for the pixels in the brush area are calculated based on the current state of the image
+	* then a second dispatch of the shader does all the imageStore function calls with the calculated values, so that no pixel is calculated based on other ones modified in the current dispatch
+	* a shader storage buffer is needed: modify it in the first part and access it in the second
+	* buffer mapping?
 */
 
 int main()
 {
 	// Renderer sets up the shader in its constructor
-	char path[] = "images/CSimage_0.png";
+	char path[] = "images/drawing_0.png";
 
-	Window window(1280, 960);
+	Window window(path);
 	GLFWwindow* glfwWin = window.GetGLFWwindow();
 
 	Renderer renderer(&window);
