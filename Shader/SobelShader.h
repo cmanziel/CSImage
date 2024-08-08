@@ -7,7 +7,7 @@
 
 enum sobel_states
 {
-	STATE_CALCULATE_GRID, STATE_DRAW_GRID
+	STATE_CALCULATE_GRID, STATE_DRAW_GRID, STATE_UPDATE_SOBEL_CANVAS
 };
 
 class SobelShader : public ComputeShader
@@ -15,15 +15,19 @@ class SobelShader : public ComputeShader
 public:
 	//using ComputeShader::ComputeShader;
 
-	SobelShader(std::string source);
+	SobelShader(std::string source, unsigned int imageWidth, unsigned int imageHeight);
 	~SobelShader();
 
+	void UpdateSobelCanvas();
 	void UpdateInputs(unsigned int brushRadius, float* cursorPos);
 
 	void Execute() override;
 private:
 	unsigned int m_BrushRadius;
 	GLuint m_GridBuffer;
+	GLuint m_SobelCanvas;
+	unsigned int m_ImageWidth;
+	unsigned int m_ImageHeight;
 };
 
 #endif // !SOBEL_H

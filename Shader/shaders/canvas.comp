@@ -5,6 +5,7 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in; // every local_
 
 layout(binding = 0, rgba32f) uniform restrict image2D imageOut; // called "edited" in other shaders
 layout(binding = 1, rgba32f) uniform readonly image2D imageIn; // called "canvas" in other shaders
+layout(binding = 2, rgba32f) uniform coherent image2D sobelCanvas; // initialize the canvas to the base canvas image
 
 void main()
 {
@@ -19,4 +20,5 @@ void main()
 	uv = ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
 	
 	imageStore(imageOut, uv, canvas_pixel_color);
+	imageStore(sobelCanvas, uv, canvas_pixel_color);
 }

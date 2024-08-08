@@ -14,7 +14,7 @@ Renderer::Renderer(Window* win)
 	: m_DrawEraseShader("Shader/shaders/shader.comp"),
 	m_VFShader("Shader/shaders/shader.vert", "Shader/shaders/shader.frag"),
 	m_CanvasShader("Shader/shaders/canvas.comp"),
-	m_SobelShader("Shader/shaders/sobelShader.comp"),
+	m_SobelShader("Shader/shaders/sobelShader.comp", win->GetWidth(), win->GetHeight()),
 	m_CurrentShader(NULL),
 	m_Window(win)
 {
@@ -98,6 +98,9 @@ void Renderer::SelectShader()
 	case STATE_SOBEL: {
 		Shader::Use(m_SobelShader.GetID());
 		m_SobelShader.UpdateInputs(radius, cursorPos);
+		// update only at the frame when the brush state changes to STATE_SOBEL
+		if(m_CurrentShader != &m_SobelShader)
+			m_SobelShader.UpdateSobelCanvas();
 		m_CurrentShader = &m_SobelShader;
 	} break;
 	case STATE_INACTIVE:

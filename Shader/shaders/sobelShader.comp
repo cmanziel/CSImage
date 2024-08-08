@@ -3,6 +3,7 @@
 
 #define STATE_CALCULATE_KERNELS 0
 #define STATE_DRAW_PIXEL 1
+#define STATE_UPDATE_SOBEL_CANVAS 2
 #define MAX_RADIUS 200
 #define SOBEL_CLAMP_FLOAT_VALUE 5.6568
 
@@ -23,6 +24,7 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in; // every local_
 
 layout(binding = 0, rgba32f) uniform restrict image2D edited;
 layout(binding = 1, rgba32f) uniform readonly image2D canvas;
+layout(binding = 2, rgba32f) uniform coherent image2D sobelCanvas;
 
 layout(std430, binding = 2) buffer cursorPos
 {
@@ -46,16 +48,30 @@ void main()
 
 	ivec2 base_uv = ivec2(int(cursor_pos.x) - brushRadius, int(dims.y - cursor_pos.y) - brushRadius);
 
-	ivec2 uv = base_uv + ivec2(gl_GlobalInvocationID.xy);
+	ivec2 uv = base_uv + ivec2(gl_WorkGroupID.xy);
 
 	uvec3 gwid = gl_WorkGroupID;
 	uint gridIndex = gwid.z * gl_NumWorkGroups.y * gl_NumWorkGroups.x + gwid.y * gl_NumWorkGroups.x + gwid.x;
 
-	if(state == STATE_CALCULATE_KERNELS)
-		grid[gridIndex] = edge_pixel(uv);
+	switch(state)
+	{
+		case STATE_CALCULATE_KERNELS:
+			grid[gridIndex] = edge_pixel(uv);
+		break;
 
-	else
-		imageStore(edited, uv, grid[gridIndex]);
+		case STATE_UPDATE_SOBEL_CANVAS:
+		{
+			// in this case the whole image will be dispatch
+			// so the uv doesn't depend on the cursor position but just on the work group invocation ID
+			uv = ivec2(gl_GlobalInvocationID.xy);
+			vec4 current_edited_color = imageLoad(edited, uv);
+			imageStore(sobelCanvas, uv, current_edited_color);
+		} break;
+
+		case STATE_DRAW_PIXEL:
+			imageStore(edited, uv, grid[gridIndex]);
+		break;
+	}
 }
 
 vec4 edge_pixel(ivec2 uv)
@@ -92,7 +108,7 @@ float kernel_mult(ivec2 pixel_uv, int ch, mat3 kernel)
 		{
 			ivec2 grid_uv = pixel_uv + ivec2(x, y);
 
-			vec4 current_color = imageLoad(edited, ivec2(grid_uv.x, grid_uv.y));
+			vec4 current_color = imageLoad(sobelCanvas, ivec2(grid_uv.x, grid_uv.y));
 			
 			// for applying the effect to the base canvas image:
 			//vec4 current_color = imageLoad(canvas, ivec2(grid_uv.x, dims.y - grid_uv.y));
