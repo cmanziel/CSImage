@@ -44,7 +44,7 @@ Renderer::Renderer(Window* win)
 	{
 		glGenTextures(1, &m_Canvas);
 		glBindTexture(GL_TEXTURE_2D, m_Canvas);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, imageWidth, imageHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, m_Window->GetImageData());
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, imageWidth, imageHeight, 0, GL_RGBA, GL_INT, m_Window->GetImageData());
 
 		// for texture completeness
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);

@@ -45,8 +45,10 @@ void Window::InitWindow()
         // error handling for wrong decompression
         if (filteredData != NULL)
         {
+            uint8_t channels_per_pixel = image_get_channels_per_pixel(m_Image);
+            uint8_t bit_depth = image_get_bit_depth(m_Image);
             // m_ImageData still containts the filter method before every scanline of pixels, so concatenate just the pixel channels' data into one array
-            m_ImageData = concatenate_filtered_data(filteredData, m_Width, m_Height, CHANNELS_PER_PIXEL);
+            m_ImageData = concatenate_filtered_data(filteredData, m_Width, m_Height, channels_per_pixel, bit_depth);
 
             free(filteredData);
         }
