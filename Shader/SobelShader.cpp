@@ -11,7 +11,7 @@ SobelShader::SobelShader(std::string csPath, unsigned int imageWidth, unsigned i
 
 	glGenTextures(1, &m_SobelCanvas);
 	glBindTexture(GL_TEXTURE_2D, m_SobelCanvas);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_ImageWidth, m_ImageHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_ImageWidth, m_ImageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 

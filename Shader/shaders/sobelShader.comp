@@ -6,6 +6,7 @@
 #define STATE_UPDATE_SOBEL_CANVAS 2
 #define MAX_RADIUS 200
 #define SOBEL_CLAMP_FLOAT_VALUE 5.6568
+#define SOBEL_CLAMP_UINT8_VALUE 1442.49783362
 
 // mats stored in colum-major order: define column by column
 mat3 sobel_kernel_Gx = mat3(
@@ -22,9 +23,9 @@ mat3 sobel_kernel_Gy = mat3(
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in; // every local_size_* is by default 1
 
-layout(binding = 0, rgba32f) uniform restrict image2D edited;
-layout(binding = 1, rgba32f) uniform readonly image2D canvas;
-layout(binding = 2, rgba32f) uniform restrict image2D sobelCanvas;
+uniform layout(binding = 0, rgba32f) restrict image2D edited;
+uniform layout(binding = 1, rgba32f) readonly image2D canvas;
+uniform layout(binding = 2, rgba32f) restrict image2D sobelCanvas;
 
 layout(std430, binding = 2) buffer cursorPos
 {
@@ -88,7 +89,8 @@ vec4 edge_pixel(ivec2 uv)
 		float Gx = kernel_mult(uv, i, sobel_kernel_Gx);
 		float Gy = kernel_mult(uv, i, sobel_kernel_Gy);
 
-		result[i] = sqrt(Gx * Gx + Gy * Gy) / SOBEL_CLAMP_FLOAT_VALUE;
+		// sqrt is a floating point operation
+		result[i] = sqrt(Gx * Gx + Gy * Gy / SOBEL_CLAMP_FLOAT_VALUE);
 		sum += result[i];
 	}
 
@@ -99,7 +101,7 @@ vec4 edge_pixel(ivec2 uv)
 
 float kernel_mult(ivec2 pixel_uv, int ch, mat3 kernel)
 {
-	float kernel_sum = 0.0;
+	float kernel_sum = 0;
 	ivec2 dims = imageSize(edited);
 
 	for(int y = -1; y < 2; y++)
@@ -109,11 +111,9 @@ float kernel_mult(ivec2 pixel_uv, int ch, mat3 kernel)
 			ivec2 grid_uv = pixel_uv + ivec2(x, y);
 
 			vec4 current_color = imageLoad(sobelCanvas, ivec2(grid_uv.x, grid_uv.y));
-			
-			// for applying the effect to the base canvas image:
-			//vec4 current_color = imageLoad(canvas, ivec2(grid_uv.x, dims.y - grid_uv.y));
 
-			kernel_sum += current_color[ch] * kernel[x + 1][1 - y];
+			// float operation because mat3 values are always floating point
+			kernel_sum += int(current_color[ch] * kernel[x + 1][1 - y]);
 		}
 	}
 

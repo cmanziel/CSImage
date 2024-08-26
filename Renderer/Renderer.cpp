@@ -31,7 +31,7 @@ Renderer::Renderer(Window* win)
 	glGenTextures(1, &m_RenderTexture);
 	glBindTexture(GL_TEXTURE_2D, m_RenderTexture);
 	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8UI, 256, 256, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, NULL);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, imageWidth, imageHeight, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	// mipmap completeness, integer color format do not support linear filtering, use GL_NEAREST
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -44,7 +44,8 @@ Renderer::Renderer(Window* win)
 	{
 		glGenTextures(1, &m_Canvas);
 		glBindTexture(GL_TEXTURE_2D, m_Canvas);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, imageWidth, imageHeight, 0, GL_RGBA, GL_INT, m_Window->GetImageData());
+		//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8UI, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_Window->GetImageData());
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_Window->GetImageData());
 
 		// for texture completeness
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);

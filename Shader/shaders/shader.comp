@@ -6,8 +6,8 @@
 
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in; // every local_size_* is by default 1
 
-layout(binding = 0, rgba32f) uniform restrict image2D edited;
-layout(binding = 1, rgba32f) uniform readonly image2D canvas;
+uniform layout(binding = 0, rgba32f) restrict image2D edited;
+uniform layout(binding = 1, rgba32f) readonly image2D canvas;
 
 layout(std430, binding = 2) buffer cursorPos
 {
@@ -31,7 +31,7 @@ void main()
 	switch(drawFlag)
 	{
 		case DRAW:
-			imageStore(edited, uv, vec4(0.0, 0.0, 1.0, 1.0));
+			imageStore(edited, uv, ivec4(0, 0, 255, 255));
 		break;
 
 		case ERASE: {
