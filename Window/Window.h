@@ -17,6 +17,12 @@ enum window_state
 	STATE_CURSOR_INSIDE, STATE_CURSOR_OUTSIDE, STATE_CURSOR_SNAPSHOT
 };
 
+typedef struct {
+	int tex_internal_format;
+	int pixel_format;
+	int pixel_type;
+} canvas_data;
+
 class Window
 {
 public:
@@ -31,6 +37,8 @@ public:
 	unsigned int GetWidth();
 	unsigned int GetHeight();
 	unsigned char* GetImageData();
+	canvas_data GetCanvasTextureData();
+	void SetCanvasTextureData(uint8_t cpp, uint8_t bit_depth);
 
 	cursor GetCursor();
 	Brush* GetBrush();
@@ -61,6 +69,7 @@ private:
 	FILE* m_Image; // file pointer to the image file currently being edited
 	char* m_Path;
 	unsigned char* m_ImageData;
+	canvas_data m_CanvasData;
 
 	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 	{

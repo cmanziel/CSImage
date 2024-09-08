@@ -47,6 +47,8 @@ void main()
 {
 	ivec2 dims = imageSize(canvas);
 
+	ivec2 cursorToGrid = ivec2(gl_WorkGroupID.xy) - ivec2(brushRadius / 2, brushRadius / 2);
+
 	ivec2 base_uv = ivec2(int(cursor_pos.x) - brushRadius, int(dims.y - cursor_pos.y) - brushRadius);
 
 	ivec2 uv = base_uv + ivec2(gl_WorkGroupID.xy);
@@ -57,7 +59,11 @@ void main()
 	switch(state)
 	{
 		case STATE_CALCULATE_KERNELS:
+		{
+			if(length(cursorToGrid) > brushRadius / 2)
+				return;
 			grid[gridIndex] = edge_pixel(uv);
+		}
 		break;
 
 		case STATE_UPDATE_SOBEL_CANVAS:
@@ -70,7 +76,11 @@ void main()
 		} break;
 
 		case STATE_DRAW_PIXEL:
+		{
+			if(length(cursorToGrid) > brushRadius / 2)
+				return;
 			imageStore(edited, uv, grid[gridIndex]);
+		}
 		break;
 	}
 }

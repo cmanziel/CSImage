@@ -24,7 +24,9 @@ int main()
 {
 	// Renderer sets up the shader in its constructor
 	//char path[] = "images/drawing_0.png";
-	char path[] = "images/block_pointed.png";
+	//char path[] = "images/block_pointed.png";
+	//char path[] = "images/spheres.png";
+	char path[] = "images/screenshot.png";
 
 	Window window(path);
 	GLFWwindow* glfwWin = window.GetGLFWwindow();

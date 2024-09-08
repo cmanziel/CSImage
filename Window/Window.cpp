@@ -48,6 +48,8 @@ void Window::InitWindow()
             uint8_t channels_per_pixel = image_get_channels_per_pixel(m_Image);
             uint8_t bit_depth = image_get_bit_depth(m_Image);
 
+            SetCanvasTextureData(channels_per_pixel, bit_depth);
+
             reconstruct_filtered_data(filteredData, m_Width, m_Height, channels_per_pixel, bit_depth);
 
             // m_ImageData still containts the filter method before every scanline of pixels, so concatenate just the pixel channels' data into one array
@@ -123,6 +125,40 @@ unsigned int Window::GetHeight()
 unsigned char* Window::GetImageData()
 {
     return m_ImageData;
+}
+
+void Window::SetCanvasTextureData(uint8_t cpp, uint8_t bit_depth)
+{
+    switch (cpp)
+    {
+    case 1:
+        m_CanvasData.pixel_format = GL_RED;
+        break;
+    case 3:
+        m_CanvasData.pixel_format = GL_RGB;
+        break;
+    case 4:
+        m_CanvasData.pixel_format = GL_RGBA;
+        break;
+    }
+
+    switch (bit_depth)
+    {
+    case 8:
+        m_CanvasData.pixel_type = GL_UNSIGNED_BYTE;
+        break;
+    case 16:
+        m_CanvasData.pixel_type = GL_UNSIGNED_SHORT;
+        break;
+    case 32:
+        m_CanvasData.pixel_type = GL_UNSIGNED_INT;
+        break;
+    }
+}
+
+canvas_data Window::GetCanvasTextureData()
+{
+    return m_CanvasData;
 }
 
 cursor Window::GetCursor()

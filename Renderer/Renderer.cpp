@@ -42,10 +42,13 @@ Renderer::Renderer(Window* win)
 
 	if (m_Window->GetImageData() != NULL)
 	{
+		canvas_data cd = m_Window->GetCanvasTextureData();
+
+		// glTexImage2D arguments based on image format
 		glGenTextures(1, &m_Canvas);
 		glBindTexture(GL_TEXTURE_2D, m_Canvas);
 		//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8UI, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_Window->GetImageData());
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_Window->GetImageData());
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, imageWidth, imageHeight, 0, cd.pixel_format, cd.pixel_type, m_Window->GetImageData());
 
 		// for texture completeness
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
