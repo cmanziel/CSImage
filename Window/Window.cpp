@@ -29,16 +29,16 @@ void Window::InitWindow()
     m_Image = fopen(m_Path, "rb");
     unsigned char* idat_data, * image_pixel_data;
 
-    if (m_Image == NULL)
+    m_Width = 1800;
+    m_Height = 1000;
+
+    if (m_Image != NULL)
     {
-        m_ImageData = NULL;
-        m_Width = 2000;
-        m_Height = 1000;
-    }
-    else
-    {
-        m_Width = image_get_width(m_Image);
-        m_Height = image_get_height(m_Image);
+        unsigned int imgWidth = image_get_width(m_Image);
+        unsigned int imgHeight = image_get_height(m_Image);
+
+        m_ImageWidth = imgWidth;
+        m_ImageHeight = imgHeight;
 
         unsigned char* filteredData = decompress_image(m_Image);
 
@@ -50,16 +50,18 @@ void Window::InitWindow()
 
             SetCanvasTextureData(channels_per_pixel, bit_depth);
 
-            reconstruct_filtered_data(filteredData, m_Width, m_Height, channels_per_pixel, bit_depth);
+            reconstruct_filtered_data(filteredData, imgWidth, imgHeight, channels_per_pixel, bit_depth);
 
             // m_ImageData still containts the filter method before every scanline of pixels, so concatenate just the pixel channels' data into one array
-            m_ImageData = concatenate_filtered_data(filteredData, m_Width, m_Height, channels_per_pixel, bit_depth);
+            m_ImageData = concatenate_filtered_data(filteredData, imgWidth, imgHeight, channels_per_pixel, bit_depth);
 
             free(filteredData);
         }
         else
             m_ImageData = NULL;
     }
+    else
+        m_ImageData = NULL;
 
     /* Initialize the library */
     if (!glfwInit())
@@ -85,9 +87,37 @@ void Window::InitWindow()
         throw std::runtime_error("error initializing glew\n");
     }
 
-    glfwSetInputMode(m_GLFWwindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    if (glfwRawMouseMotionSupported())
-        glfwSetInputMode(m_GLFWwindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+    //glfwSetInputMode(m_GLFWwindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //if (glfwRawMouseMotionSupported())
+    //    glfwSetInputMode(m_GLFWwindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+
+    InitRenderArea();
+}
+
+void Window::InitRenderArea()
+{
+    m_RenderArea.width = m_ImageWidth;
+    m_RenderArea.height = m_ImageHeight;
+
+    m_RenderArea.x = m_ImageWidth > m_Width ? 1.0 / 8.0 * m_Width : (m_Width - m_ImageWidth) / 2;
+    m_RenderArea.y = m_ImageHeight > m_Height ? m_ImageHeight : (m_Height - m_ImageHeight) / 2 + m_ImageHeight;
+
+    m_RenderArea.ndc_width = (float)m_ImageWidth / m_Width * 2;
+    m_RenderArea.ndc_height = (float)m_ImageHeight / m_Height * 2;
+
+    float paddingX = abs(m_Width - m_ImageWidth) / 2.0f;
+    float paddingY = abs(m_Height - m_ImageHeight) / 2.0f;
+
+    //m_RenderArea.ndc_x = m_ImageWidth > m_Width ? 1.0 / 8.0 * 2.0f - 1.0f : paddingX / m_Width * 2.0f - 1.0f;
+    //m_RenderArea.ndc_y = m_ImageHeight > m_Height ? -((m_RenderArea.ndc_height - 2.0f) - (paddingY / m_Height)) * 2.0f - 1.0f : paddingY / m_Height * 2.0f - 1.0f;
+
+    m_RenderArea.ndc_x = (float)m_RenderArea.x / m_Width * 2.0f - 1.0f;
+    m_RenderArea.ndc_y = -(float)m_RenderArea.y / m_Height * 2.0f + 1.0f;
+}
+
+render_area Window::GetRenderArea()
+{
+    return m_RenderArea;
 }
 
 Window::~Window()
@@ -112,14 +142,24 @@ GLFWwindow* Window::GetGLFWwindow()
     return m_GLFWwindow;
 }
 
-unsigned int Window::GetWidth()
+int Window::GetWidth()
 {
     return m_Width;
 }
 
-unsigned int Window::GetHeight()
+int Window::GetHeight()
 {
     return m_Height;
+}
+
+int Window::GetImageWidth()
+{
+    return m_ImageWidth;
+}
+
+int Window::GetImageHeight()
+{
+    return m_ImageHeight;
 }
 
 unsigned char* Window::GetImageData()
@@ -132,7 +172,7 @@ void Window::SetCanvasTextureData(uint8_t cpp, uint8_t bit_depth)
     switch (cpp)
     {
     case 1:
-        m_CanvasData.pixel_format = GL_RED;
+        m_CanvasData.pixel_format = GL_RED; // red meaning a one channel pixel
         break;
     case 3:
         m_CanvasData.pixel_format = GL_RGB;
@@ -171,13 +211,19 @@ Brush* Window::GetBrush()
     return m_Brush;
 }
 
+int Window::GetState()
+{
+    return m_State;
+}
+
 void Window::CursorMovement()
 {
     //get the last cursor positions
-    glfwGetCursorPos(m_GLFWwindow, &m_Cursor.x, &m_Cursor.y);
+    glfwGetCursorPos(m_GLFWwindow, &m_Cursor.x, &m_Cursor.y); 
 
     // cursor outside window's client area
-    if (m_Cursor.x <= 0.0 || m_Cursor.x >= (float)(m_Width - 1) || m_Cursor.y <= 0.0 || m_Cursor.y >= (float)(m_Height - 1))
+    if (m_Cursor.x <= (float)m_RenderArea.x || m_Cursor.x >= (float)(m_RenderArea.x + m_RenderArea.width)
+        || m_Cursor.y >= (float)m_RenderArea.y || m_Cursor.y <= (float)(m_RenderArea.y - m_RenderArea.height))
     {
         m_State = STATE_CURSOR_OUTSIDE;
 
@@ -195,13 +241,13 @@ void Window::CursorMovement()
     {
         m_State = STATE_CURSOR_INSIDE;
 
-        glfwSetInputMode(m_GLFWwindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        if (glfwRawMouseMotionSupported())
-            glfwSetInputMode(m_GLFWwindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+        //glfwSetInputMode(m_GLFWwindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        //if (glfwRawMouseMotionSupported())
+        //    glfwSetInputMode(m_GLFWwindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
         left = false;
     }
 
-    float pos[] = { m_Cursor.x, m_Cursor.y };
+    float pos[] = { m_Cursor.x - m_RenderArea.x, m_Cursor.y - (m_RenderArea.y - m_RenderArea.height)};
 
     // bind the buffer first
     // better if the buffer is mapped before the main application loop and the only its value on the application side is modified, this modification through teh mapping will reflect on the GPU

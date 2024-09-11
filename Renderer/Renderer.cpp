@@ -1,14 +1,16 @@
 #include "Renderer.h"
 
-float quad[] = {
-	// 2 floats for postions coordinates, 2 for texture coordinates
-	-1.0f, 1.0f, 0.0f, 1.0f,
-	-1.0f, -1.0f, 0.0f, 0.0f,
-	1.0f, -1.0f, 1.0f, 0.0f,
-	-1.0f, 1.0f, 0.0f, 1.0f,
-	1.0f, -1.0f, 1.0f, 0.0f,
-	1.0f, 1.0f, 1.0f, 1.0f
-};
+//float quad[] = {
+//	// 2 floats for postions coordinates, 2 for texture coordinates
+//	-1.0f, 1.0f, 0.0f, 1.0f,
+//	-1.0f, -1.0f, 0.0f, 0.0f,
+//	1.0f, -1.0f, 1.0f, 0.0f,
+//	-1.0f, 1.0f, 0.0f, 1.0f,
+//	1.0f, -1.0f, 1.0f, 0.0f,
+//	1.0f, 1.0f, 1.0f, 1.0f
+//};
+
+void setRenderingAreaQuad(float* quad, render_area area);
 
 Renderer::Renderer(Window* win)
 	: m_DrawEraseShader("Shader/shaders/shader.comp"),
@@ -18,8 +20,8 @@ Renderer::Renderer(Window* win)
 	m_CurrentShader(NULL),
 	m_Window(win)
 {
-	unsigned int imageWidth = m_Window->GetWidth();
-	unsigned int imageHeight = m_Window->GetHeight();
+	int imageWidth = win->GetImageWidth();
+	int imageHeight = win->GetImageHeight();
 
 	m_CanvasShader.CreateProgram();
 	m_VFShader.CreateProgram();
@@ -68,9 +70,11 @@ Renderer::Renderer(Window* win)
 	}
 
 	// screen quad VBO
+	setRenderingAreaQuad(m_RenderingQuad, win->GetRenderArea());
+	
 	glGenBuffers(1, &m_ScreenQuadBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, m_ScreenQuadBuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(m_RenderingQuad), m_RenderingQuad, GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
@@ -81,22 +85,35 @@ Renderer::Renderer(Window* win)
 
 void Renderer::SelectShader()
 {
-	uint8_t state = m_Window->GetBrush()->GetState();
+	uint8_t brushState = m_Window->GetBrush()->GetState();
+	int windowState = m_Window->GetState();
 
 	cursor curs = m_Window->GetCursor();
-	unsigned int radius = m_Window->GetBrush()->GetRadius();
-	float cursorPos[2] = { curs.x, curs.y };
+	render_area rendArea = m_Window->GetRenderArea();
 
-	switch (state)
+	unsigned int radius = m_Window->GetBrush()->GetRadius();
+
+	// the cursor pos must be related to the render area coordinates
+	float cursorPos[2] = { curs.x - rendArea.x, curs.y - (rendArea.y - rendArea.height)};
+
+	//printf("x: %f\ty: %f\n", cursorPos[0], cursorPos[1]);
+
+	if (windowState != STATE_CURSOR_INSIDE)
+	{
+		m_CurrentShader = NULL;
+		return;
+	}
+
+	switch (brushState)
 	{
 	case STATE_DRAW: {
 		Shader::Use(m_DrawEraseShader.GetID());
-		m_DrawEraseShader.UpdateInputs(radius, cursorPos, state);
+		m_DrawEraseShader.UpdateInputs(radius, cursorPos, brushState);
 		m_CurrentShader = &m_DrawEraseShader;
 	} break;
 	case STATE_ERASE: {
 		Shader::Use(m_DrawEraseShader.GetID());
-		m_DrawEraseShader.UpdateInputs(radius, cursorPos, state);
+		m_DrawEraseShader.UpdateInputs(radius, cursorPos, brushState);
 		m_CurrentShader = &m_DrawEraseShader;
 	} break;
 	case STATE_SOBEL: {
@@ -138,4 +155,46 @@ Renderer::~Renderer()
 	glDeleteTextures(1, &m_RenderTexture);
 	glDeleteTextures(1, &m_Canvas);
 	glDeleteBuffers(1, &m_ScreenQuadBuffer);
+}
+
+void setRenderingAreaQuad(float* quad, render_area area)
+{
+	// vertex
+	quad[0] = area.ndc_x;
+	quad[1] = area.ndc_y;
+	//tex coord
+	quad[2] = 0.0;
+	quad[3] = 0.0;
+	//vertex
+	quad[4] = area.ndc_x + area.ndc_width;
+	quad[5] = area.ndc_y;
+	//tex coord
+	quad[6] = 1.0;
+	quad[7] = 0.0;
+	//vertex
+	quad[8] = area.ndc_x;
+	quad[9] = area.ndc_y + area.ndc_height;
+	//tex coord
+	quad[10] = 0.0;
+	quad[11] = 1.0;
+
+	//other triangle
+	//vertex
+	quad[12] = area.ndc_x;
+	quad[13] = area.ndc_y + area.ndc_height;
+	//tex coord
+	quad[14] = 0.0;
+	quad[15] = 1.0;
+	//vertex
+	quad[16] = area.ndc_x + area.ndc_width;
+	quad[17] = area.ndc_y;
+	//tex coord
+	quad[18] = 1.0;
+	quad[19] = 0.0;
+	//vertex
+	quad[20] = area.ndc_x + area.ndc_width;
+	quad[21] = area.ndc_y + area.ndc_height;
+	//tex coord
+	quad[22] = 1.0;
+	quad[23] = 1.0;
 }

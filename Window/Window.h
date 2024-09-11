@@ -23,6 +23,19 @@ typedef struct {
 	int pixel_type;
 } canvas_data;
 
+typedef struct {
+	int x; // coordinates of the bottom-left conrner in window space: (0,0) is top-left corner
+	int y;
+	int width;
+	int height;
+	
+	// in ndc space coordinates
+	float ndc_x;
+	float ndc_y;
+	float ndc_width;
+	float ndc_height;
+} render_area;
+
 class Window
 {
 public:
@@ -30,18 +43,25 @@ public:
 	~Window();
 
 	void InitWindow();
+	void InitRenderArea();
+	render_area GetRenderArea();
 
 	void Update();
 
 	GLFWwindow* GetGLFWwindow();
-	unsigned int GetWidth();
-	unsigned int GetHeight();
+	int GetWidth();
+	int GetHeight();
+
 	unsigned char* GetImageData();
+	int GetImageWidth();
+	int GetImageHeight();
+
 	canvas_data GetCanvasTextureData();
 	void SetCanvasTextureData(uint8_t cpp, uint8_t bit_depth);
 
 	cursor GetCursor();
 	Brush* GetBrush();
+	int GetState();
 
 	//void KeyInput();
 	//void WindowResize();
@@ -57,14 +77,17 @@ public:
 
 private:
 	GLFWwindow* m_GLFWwindow;
-	unsigned int m_Width;
-	unsigned int m_Height;
+	int m_Width;
+	int m_Height;
+	int m_ImageWidth;
+	int m_ImageHeight;
 
 	cursor m_Cursor;
 	GLuint m_CursorBuffer;
 
 	Brush* m_Brush;
 	uint8_t m_State;
+	render_area m_RenderArea;
 
 	FILE* m_Image; // file pointer to the image file currently being edited
 	char* m_Path;
