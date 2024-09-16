@@ -11,6 +11,7 @@
 #include <WinUser.h>
 
 #define LAST_CURSOR_POS_NUM 10
+#define OUTPUT_IMAGE_CHANNELS 4
 
 enum window_state
 {

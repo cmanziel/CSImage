@@ -1,14 +1,14 @@
 #include "Renderer.h"
 
-//float quad[] = {
-//	// 2 floats for postions coordinates, 2 for texture coordinates
-//	-1.0f, 1.0f, 0.0f, 1.0f,
-//	-1.0f, -1.0f, 0.0f, 0.0f,
-//	1.0f, -1.0f, 1.0f, 0.0f,
-//	-1.0f, 1.0f, 0.0f, 1.0f,
-//	1.0f, -1.0f, 1.0f, 0.0f,
-//	1.0f, 1.0f, 1.0f, 1.0f
-//};
+float quad[] = {
+	// 2 floats for postions coordinates, 2 for texture coordinates
+	-1.0f, 1.0f, 0.0f, 1.0f,
+	-1.0f, -1.0f, 0.0f, 0.0f,
+	1.0f, -1.0f, 1.0f, 0.0f,
+	-1.0f, 1.0f, 0.0f, 1.0f,
+	1.0f, -1.0f, 1.0f, 0.0f,
+	1.0f, 1.0f, 1.0f, 1.0f
+};
 
 void setRenderingAreaQuad(float* quad, render_area area);
 
@@ -16,7 +16,8 @@ Renderer::Renderer(Window* win)
 	: m_DrawEraseShader("Shader/shaders/shader.comp"),
 	m_VFShader("Shader/shaders/shader.vert", "Shader/shaders/shader.frag"),
 	m_CanvasShader("Shader/shaders/canvas.comp"),
-	m_SobelShader("Shader/shaders/sobelShader.comp", win->GetWidth(), win->GetHeight()),
+	m_SobelShader("Shader/shaders/sobelShader.comp", win->GetImageWidth(), win->GetImageHeight()),
+	m_BlurShader("Shader/shaders/blurShader.comp", win->GetImageWidth(), win->GetImageHeight()),
 	m_CurrentShader(NULL),
 	m_Window(win)
 {
@@ -27,6 +28,7 @@ Renderer::Renderer(Window* win)
 	m_VFShader.CreateProgram();
 	m_DrawEraseShader.CreateProgram();
 	m_SobelShader.CreateProgram();
+	m_BlurShader.CreateProgram();
 
 	// set up the texture to render to
 	// assure the texture is complete (see https://www.khronos.org/opengl/wiki/Texture#Texture_completeness)
@@ -70,8 +72,10 @@ Renderer::Renderer(Window* win)
 	}
 
 	// screen quad VBO
-	setRenderingAreaQuad(m_RenderingQuad, win->GetRenderArea());
-	
+	//setRenderingAreaQuad(m_RenderingQuad, win->GetRenderArea());
+
+	memcpy(m_RenderingQuad, quad, 24 * sizeof(float));
+
 	glGenBuffers(1, &m_ScreenQuadBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, m_ScreenQuadBuffer);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(m_RenderingQuad), m_RenderingQuad, GL_STATIC_DRAW);
@@ -124,6 +128,15 @@ void Renderer::SelectShader()
 			m_SobelShader.UpdateSobelCanvas();
 		m_CurrentShader = &m_SobelShader;
 	} break;
+	case STATE_BLUR:
+	{
+		Shader::Use(m_BlurShader.GetID());
+		m_BlurShader.UpdateInputs(radius, cursorPos);
+		if (m_CurrentShader != &m_BlurShader)
+			m_BlurShader.UpdateBlurCanvas();
+		m_CurrentShader = &m_BlurShader;
+	}
+	break;
 	case STATE_INACTIVE:
 		m_CurrentShader = NULL;
 		break;

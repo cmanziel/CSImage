@@ -3,6 +3,7 @@
 
 #include "../Shader/VFShader.h"
 #include "../Shader/SobelShader.h"
+#include "../Shader/BlurShader.h"
 #include "../Shader/DrawEraseShader.h"
 #include "../Shader/CanvasShader.h"
 #include "../Window/Window.h"
@@ -24,6 +25,7 @@ private:
 	VFShader m_VFShader;
 	CanvasShader m_CanvasShader;
 	SobelShader m_SobelShader;
+	BlurShader m_BlurShader;
 
 	ComputeShader* m_CurrentShader;
 

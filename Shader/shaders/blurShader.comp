@@ -1,0 +1,98 @@
+#version 430 core
+#extension GL_ARB_compute_shader : enable
+
+#define STATE_CALCULATE_GRID 0
+#define STATE_DRAW_PIXEL 1
+#define STATE_UPDATE_BLUR_CANVAS 2
+#define MAX_RADIUS 200
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in; // every local_size_* is by default 1
+
+uniform layout(binding = 0, rgba32f) restrict image2D edited;
+uniform layout(binding = 1, rgba32f) readonly image2D canvas;
+uniform layout(binding = 2, rgba32f) restrict image2D blurCanvas;
+
+layout(std430, binding = 2) buffer cursorPos
+{
+	vec2 cursor_pos;
+};
+
+layout(std430, binding = 3) buffer brush_area_pixels
+{
+	vec4 grid[MAX_RADIUS * MAX_RADIUS];
+};
+
+layout(location = 3) uniform int brushRadius;
+layout(location = 4) uniform int state;
+
+vec4 blur_pixel(ivec2 uv, ivec2 dims);
+
+void main()
+{
+	ivec2 dims = imageSize(canvas);
+
+	ivec2 cursorToGrid = ivec2(gl_WorkGroupID.xy) - ivec2(brushRadius / 2, brushRadius / 2);
+
+	ivec2 base_uv = ivec2(int(cursor_pos.x) - brushRadius / 2, int(dims.y - cursor_pos.y) - brushRadius / 2);
+
+	ivec2 uv = base_uv + ivec2(gl_WorkGroupID.xy);
+
+	uvec3 gwid = gl_WorkGroupID;
+	uint gridIndex = gwid.z * gl_NumWorkGroups.y * gl_NumWorkGroups.x + gwid.y * gl_NumWorkGroups.x + gwid.x;
+
+	switch(state)
+	{
+		case STATE_CALCULATE_GRID:
+		{
+			if(length(cursorToGrid) > brushRadius / 2)
+				return;
+			grid[gridIndex] = blur_pixel(uv, dims);
+		}
+		break;
+
+		case STATE_UPDATE_BLUR_CANVAS:
+		{
+			// in this case the whole image will be dispatch
+			// so the uv doesn't depend on the cursor position but just on the work group invocation ID
+			uv = ivec2(gl_GlobalInvocationID.xy);
+			vec4 current_edited_color = imageLoad(edited, uv);
+			imageStore(blurCanvas, uv, current_edited_color);
+		} break;
+
+		case STATE_DRAW_PIXEL:
+		{
+			if(length(cursorToGrid) > brushRadius / 2)
+				return;
+			imageStore(edited, uv, grid[gridIndex]);
+		}
+		break;
+	}
+}
+
+vec4 blur_pixel(ivec2 uv, ivec2 dims)
+{
+	vec4 result;
+
+	// if the pixel is on the edge of the image, return it unmodified
+	if(uv.x < 1 || uv.y < 1 || uv.x + 1 == dims.x || uv.y + 1 == dims.y)
+		return imageLoad(blurCanvas, uv);
+
+	for(int y = -1; y < 2; y++)
+	{
+		for(int x = -1; x < 2; x++)
+		{
+			if(x == 0 && y == 0)
+				continue;
+
+			ivec2 grid_uv = uv + ivec2(x, y);
+
+			vec4 current_color = imageLoad(blurCanvas, ivec2(grid_uv.x, grid_uv.y));
+
+			result += current_color;
+		}
+	}
+
+	result.xyz /= 9;
+
+	return result;
+}

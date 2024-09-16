@@ -100,19 +100,9 @@ void Window::InitRenderArea()
     m_RenderArea.height = m_ImageHeight;
 
     m_RenderArea.x = m_ImageWidth > m_Width ? 1.0 / 8.0 * m_Width : (m_Width - m_ImageWidth) / 2;
-    m_RenderArea.y = m_ImageHeight > m_Height ? m_ImageHeight : (m_Height - m_ImageHeight) / 2 + m_ImageHeight;
+    m_RenderArea.y = m_ImageHeight > m_Height ? (m_Height - m_ImageHeight) * 1.5f : (m_Height - m_ImageHeight) / 2; // y coordinate from coordinate system with origin in bottom-left corner of the window
 
-    m_RenderArea.ndc_width = (float)m_ImageWidth / m_Width * 2;
-    m_RenderArea.ndc_height = (float)m_ImageHeight / m_Height * 2;
-
-    float paddingX = abs(m_Width - m_ImageWidth) / 2.0f;
-    float paddingY = abs(m_Height - m_ImageHeight) / 2.0f;
-
-    //m_RenderArea.ndc_x = m_ImageWidth > m_Width ? 1.0 / 8.0 * 2.0f - 1.0f : paddingX / m_Width * 2.0f - 1.0f;
-    //m_RenderArea.ndc_y = m_ImageHeight > m_Height ? -((m_RenderArea.ndc_height - 2.0f) - (paddingY / m_Height)) * 2.0f - 1.0f : paddingY / m_Height * 2.0f - 1.0f;
-
-    m_RenderArea.ndc_x = (float)m_RenderArea.x / m_Width * 2.0f - 1.0f;
-    m_RenderArea.ndc_y = -(float)m_RenderArea.y / m_Height * 2.0f + 1.0f;
+    glViewport(m_RenderArea.x, m_RenderArea.y, m_RenderArea.width, m_RenderArea.height);
 }
 
 render_area Window::GetRenderArea()
@@ -223,7 +213,7 @@ void Window::CursorMovement()
 
     // cursor outside window's client area
     if (m_Cursor.x <= (float)m_RenderArea.x || m_Cursor.x >= (float)(m_RenderArea.x + m_RenderArea.width)
-        || m_Cursor.y >= (float)m_RenderArea.y || m_Cursor.y <= (float)(m_RenderArea.y - m_RenderArea.height))
+        || m_Cursor.y >= m_Height - (float)m_RenderArea.y || m_Cursor.y <= m_Height - (float)(m_RenderArea.y + m_RenderArea.height))
     {
         m_State = STATE_CURSOR_OUTSIDE;
 
@@ -247,7 +237,7 @@ void Window::CursorMovement()
         left = false;
     }
 
-    float pos[] = { m_Cursor.x - m_RenderArea.x, m_Cursor.y - (m_RenderArea.y - m_RenderArea.height)};
+    float pos[] = { m_Cursor.x - m_RenderArea.x, m_Cursor.y - (m_Height - m_RenderArea.y - m_RenderArea.height) };
 
     // bind the buffer first
     // better if the buffer is mapped before the main application loop and the only its value on the application side is modified, this modification through teh mapping will reflect on the GPU
@@ -266,6 +256,9 @@ void Window::KeyCallback(int key, int scancode, int action, int mods)
             break;
         case GLFW_KEY_S:
             m_Brush->ChangeState(STATE_SOBEL);
+            break;
+        case GLFW_KEY_B:
+            m_Brush->ChangeState(STATE_BLUR);
             break;
         case GLFW_KEY_E:
             m_Brush->ChangeState(STATE_ERASE);
@@ -287,6 +280,103 @@ void Window::KeyCallback(int key, int scancode, int action, int mods)
 
 void Window::TakeSnapshot()
 {
-    // retrieve data from the texture object modified in the compute shader
+    unsigned char* raw_data = (unsigned char*)malloc(4 * OUTPUT_IMAGE_CHANNELS * m_ImageWidth * m_ImageHeight);
 
+    glReadPixels(0, 0, m_ImageWidth, m_ImageHeight, GL_RGBA, GL_UNSIGNED_BYTE, raw_data);
+
+    // output image uses three channels per pixel
+    unsigned int row_size = OUTPUT_IMAGE_CHANNELS * m_ImageWidth * 4 + 1;
+
+    // allcate 4 bytes per channel
+    unsigned char* filtered_data = (unsigned char*)malloc(row_size * m_ImageHeight);
+
+    if (filtered_data == NULL)
+    {
+        printf("error allocating the output image\n");
+        return;
+    }
+
+    for (unsigned int y = 0; y < m_ImageHeight; y++)
+    {
+        unsigned int row_start = y * row_size;
+
+        unsigned char filter_method = 0x00;
+
+        filtered_data[row_start] = filter_method;
+
+        for (int x = 0; x < m_ImageWidth * OUTPUT_IMAGE_CHANNELS * 4; x++)
+        {
+            filtered_data[row_start + 1 + x] = raw_data[y * (row_size - 1) + x];
+        }
+    }
+
+    // edit image path appending _edited to its name
+    strcpy(m_Path + strlen(m_Path) - strlen(".png"), "\0");
+
+    const char* path = strcat(m_Path, "_edited.png");
+
+    create_image(filtered_data, path, m_ImageWidth, m_ImageHeight, OUTPUT_IMAGE_CHANNELS, 8);
+
+    free(filtered_data);
 }
+
+/*
+void Window::TakeSnapshot()
+{
+    // modify GL_PACK_ALIGNMENT so the image in client data is stored in contiguous rows
+    // match the format with the texture's image internal format
+    // do the conversion
+    // write to file
+
+    // try using glReadPixels before
+
+    canvas_data cd = m_CanvasData;
+    int cpp = image_get_channels_per_pixel(m_Image);
+
+    //if (cpp == 1)
+    //    cd.pixel_format = GL_RED_INTEGER;
+    //else if (cpp == 3)
+    //    cd.pixel_format = GL_RGB_INTEGER;
+    //else
+    //    cd.pixel_format = GL_RGBA_INTEGER;
+
+    // desired format: GL_RGB_INTEGER
+
+    // retrieve data from the texture object modified in the compute shader
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB_INTEGER, GL_UNSIGNED_BYTE, m_ImageData);
+
+    // output image uses three channels per pixel
+    unsigned int row_size = OUTPUT_IMAGE_CHANNELS * m_ImageWidth + 1;
+
+    unsigned char* filtered_data = (unsigned char*)malloc(m_ImageWidth * m_ImageHeight * OUTPUT_IMAGE_CHANNELS + m_ImageHeight);
+
+    if (filtered_data == NULL)
+    {
+        printf("error allocating the output image\n");
+        return;
+    }
+
+    for (unsigned int y = 0; y < m_ImageHeight; y++)
+    {
+        unsigned int row_start = y * row_size;
+
+        unsigned char filter_method = 0x00;
+
+        filtered_data[row_start] = filter_method;
+
+        for (int x = 0; x < m_ImageWidth; x++)
+        {
+            filtered_data[row_start + 1 + x] = m_ImageData[y * (row_size - 1) + x];
+        }
+    }
+
+    // edit image path appending _edited to its name
+    strcpy(m_Path + strlen(m_Path) - strlen(".png"), "\0");
+
+    const char* path = strcat(m_Path, "_edited.png");
+
+    create_image(filtered_data, path, m_ImageWidth, m_ImageHeight, OUTPUT_IMAGE_CHANNELS);
+
+    free(filtered_data);
+}
+*/
