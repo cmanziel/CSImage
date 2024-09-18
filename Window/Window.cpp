@@ -280,14 +280,15 @@ void Window::KeyCallback(int key, int scancode, int action, int mods)
 
 void Window::TakeSnapshot()
 {
-    unsigned char* raw_data = (unsigned char*)malloc(4 * OUTPUT_IMAGE_CHANNELS * m_ImageWidth * m_ImageHeight);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glPixelStorei(GL_PACK_SWAP_BYTES, GL_TRUE);
 
-    glReadPixels(0, 0, m_ImageWidth, m_ImageHeight, GL_RGBA, GL_UNSIGNED_BYTE, raw_data);
+    // make sure the render texture is the last one bind to the GL_TEXTURE_2D target
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, m_ImageData);
 
-    // output image uses three channels per pixel
-    unsigned int row_size = OUTPUT_IMAGE_CHANNELS * m_ImageWidth * 4 + 1;
+    unsigned int row_size = OUTPUT_IMAGE_CHANNELS * m_ImageWidth + 1;
 
-    // allcate 4 bytes per channel
+    unsigned int filt_index = 0;
     unsigned char* filtered_data = (unsigned char*)malloc(row_size * m_ImageHeight);
 
     if (filtered_data == NULL)
@@ -296,18 +297,16 @@ void Window::TakeSnapshot()
         return;
     }
 
-    for (unsigned int y = 0; y < m_ImageHeight; y++)
+    unsigned int i = 0;
+    while(i < m_ImageWidth * 4 * m_ImageHeight)
     {
-        unsigned int row_start = y * row_size;
+        if (i % (m_ImageWidth * 4) == 0) // index of the first pixel of a row of raw data
+            filtered_data[filt_index++] = 0x00;
 
-        unsigned char filter_method = 0x00;
-
-        filtered_data[row_start] = filter_method;
-
-        for (int x = 0; x < m_ImageWidth * OUTPUT_IMAGE_CHANNELS * 4; x++)
-        {
-            filtered_data[row_start + 1 + x] = raw_data[y * (row_size - 1) + x];
-        }
+        filtered_data[filt_index++] = m_ImageData[i++];
+        filtered_data[filt_index++] = m_ImageData[i++];
+        filtered_data[filt_index++] = m_ImageData[i++];
+        i++; // skip alpha channel
     }
 
     // edit image path appending _edited to its name
@@ -320,63 +319,49 @@ void Window::TakeSnapshot()
     free(filtered_data);
 }
 
-/*
-void Window::TakeSnapshot()
-{
-    // modify GL_PACK_ALIGNMENT so the image in client data is stored in contiguous rows
-    // match the format with the texture's image internal format
-    // do the conversion
-    // write to file
-
-    // try using glReadPixels before
-
-    canvas_data cd = m_CanvasData;
-    int cpp = image_get_channels_per_pixel(m_Image);
-
-    //if (cpp == 1)
-    //    cd.pixel_format = GL_RED_INTEGER;
-    //else if (cpp == 3)
-    //    cd.pixel_format = GL_RGB_INTEGER;
-    //else
-    //    cd.pixel_format = GL_RGBA_INTEGER;
-
-    // desired format: GL_RGB_INTEGER
-
-    // retrieve data from the texture object modified in the compute shader
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB_INTEGER, GL_UNSIGNED_BYTE, m_ImageData);
-
-    // output image uses three channels per pixel
-    unsigned int row_size = OUTPUT_IMAGE_CHANNELS * m_ImageWidth + 1;
-
-    unsigned char* filtered_data = (unsigned char*)malloc(m_ImageWidth * m_ImageHeight * OUTPUT_IMAGE_CHANNELS + m_ImageHeight);
-
-    if (filtered_data == NULL)
-    {
-        printf("error allocating the output image\n");
-        return;
-    }
-
-    for (unsigned int y = 0; y < m_ImageHeight; y++)
-    {
-        unsigned int row_start = y * row_size;
-
-        unsigned char filter_method = 0x00;
-
-        filtered_data[row_start] = filter_method;
-
-        for (int x = 0; x < m_ImageWidth; x++)
-        {
-            filtered_data[row_start + 1 + x] = m_ImageData[y * (row_size - 1) + x];
-        }
-    }
-
-    // edit image path appending _edited to its name
-    strcpy(m_Path + strlen(m_Path) - strlen(".png"), "\0");
-
-    const char* path = strcat(m_Path, "_edited.png");
-
-    create_image(filtered_data, path, m_ImageWidth, m_ImageHeight, OUTPUT_IMAGE_CHANNELS);
-
-    free(filtered_data);
-}
-*/
+//void Window::TakeSnapshot()
+//{
+//    // define the pixel pack store state and alignment
+//    glPixelStorei(GL_PACK_ALIGNMENT, 1); //byte alignment, row of pixels start on multiple of 1 so whichever byte is possible
+//
+//    glPixelStorei(GL_PACK_SWAP_BYTES, GL_TRUE);
+//
+//    // allocate memory for a 32 bits per channel rgba image
+//    unsigned int fBytesSize = m_ImageWidth * 4 * sizeof(float) * m_ImageHeight; // numebr of bytes in the rgab32f image
+//    float* fBytes = (float*)malloc(fBytesSize);
+//
+//    //glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, fBytes);
+//    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, m_ImageData);
+//
+//    unsigned int row_size = OUTPUT_IMAGE_CHANNELS * m_ImageWidth + 1; 
+//
+//    // allcate 4 bytes per channel
+//    unsigned char* filtered_data = (unsigned char*)malloc(row_size * m_ImageHeight);
+//
+//    if (filtered_data == NULL)
+//    {
+//        printf("error allocating the output image\n");
+//        return;
+//    }
+//
+//    // for every channel convert it to an uint8_t, store it in an array and send it to pnglib
+//    for (unsigned int i = 0; i < fBytesSize; i++)
+//    {
+//        if (i % 3 == 0)
+//            continue;
+//
+//        uint8_t uiByte = fBytes[i] * 255;
+//
+//        filtered_data[i - i / 4] = uiByte;
+//    }
+//
+//    // edit image path appending _edited to its name
+//    strcpy(m_Path + strlen(m_Path) - strlen(".png"), "\0");
+//
+//    const char* path = strcat(m_Path, "_edited.png");
+//
+//    create_image(filtered_data, path, m_ImageWidth, m_ImageHeight, OUTPUT_IMAGE_CHANNELS, 8);
+//
+//    free(filtered_data);
+//    free(fBytes);
+//}

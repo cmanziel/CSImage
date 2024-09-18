@@ -34,7 +34,6 @@ Renderer::Renderer(Window* win)
 	// assure the texture is complete (see https://www.khronos.org/opengl/wiki/Texture#Texture_completeness)
 	glGenTextures(1, &m_RenderTexture);
 	glBindTexture(GL_TEXTURE_2D, m_RenderTexture);
-	//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8UI, 256, 256, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, NULL);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	// mipmap completeness, integer color format do not support linear filtering, use GL_NEAREST
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -100,14 +99,6 @@ void Renderer::SelectShader()
 	// the cursor pos must be related to the render area coordinates
 	float cursorPos[2] = { curs.x - rendArea.x, curs.y - (rendArea.y - rendArea.height)};
 
-	//printf("x: %f\ty: %f\n", cursorPos[0], cursorPos[1]);
-
-	if (windowState != STATE_CURSOR_INSIDE)
-	{
-		m_CurrentShader = NULL;
-		return;
-	}
-
 	switch (brushState)
 	{
 	case STATE_DRAW: {
@@ -153,7 +144,6 @@ void Renderer::Draw()
 	Shader::Use(m_VFShader.GetID());
 
 	// bind the render texture that will be applied to the quad
-	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, m_RenderTexture);
 
 	// give to the sampler the same value of the currently active texture image unit: 0

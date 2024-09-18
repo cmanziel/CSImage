@@ -36,7 +36,7 @@ void main()
 	switch(drawFlag)
 	{
 		case DRAW:
-			imageStore(edited, uv, ivec4(0, 0, 255, 255));
+			imageStore(edited, uv, ivec4(0, 0, 0, 255));
 		break;
 
 		case ERASE: {
