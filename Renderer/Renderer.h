@@ -15,6 +15,7 @@ public:
 	~Renderer();
 
 	void SelectShader();
+	void AdjustRenderQuad();
 
 	void Draw();
 

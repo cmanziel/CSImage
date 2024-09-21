@@ -81,6 +81,7 @@ void Window::InitWindow()
 
     glfwSetWindowUserPointer(m_GLFWwindow, this);
     glfwSetKeyCallback(m_GLFWwindow, key_callback);
+    glfwSetMouseButtonCallback(m_GLFWwindow, mouse_button_callback);
 
     if (glewInit() != GLEW_OK)
     {
@@ -237,6 +238,11 @@ void Window::CursorMovement()
         left = false;
     }
 
+    m_Brush->SetPosition(m_Cursor.x, m_Cursor.y);
+
+    //cursor curs = m_Brush->GetPosition();
+    //printf("cx: %f\tcy: %f\n", curs.x, curs.y);
+
     float pos[] = { m_Cursor.x - m_RenderArea.x, m_Cursor.y - (m_Height - m_RenderArea.y - m_RenderArea.height) };
 
     // bind the buffer first
@@ -252,16 +258,19 @@ void Window::KeyCallback(int key, int scancode, int action, int mods)
         switch (key)
         {
         case GLFW_KEY_D:
-            m_Brush->ChangeState(STATE_DRAW);
+            m_Brush->ChangeDrawState(STATE_DRAW);
             break;
         case GLFW_KEY_S:
-            m_Brush->ChangeState(STATE_SOBEL);
+            m_Brush->ChangeDrawState(STATE_SOBEL);
             break;
         case GLFW_KEY_B:
-            m_Brush->ChangeState(STATE_BLUR);
+            m_Brush->ChangeDrawState(STATE_BLUR);
             break;
         case GLFW_KEY_E:
-            m_Brush->ChangeState(STATE_ERASE);
+            m_Brush->ChangeDrawState(STATE_ERASE);
+            break;
+        case GLFW_MOUSE_BUTTON_1:
+            m_Brush->ChangeMouseState(STATE_DRAG);
             break;
         case GLFW_KEY_UP:
             m_Brush->SetRadius(+1);
@@ -276,6 +285,39 @@ void Window::KeyCallback(int key, int scancode, int action, int mods)
             glfwSetWindowShouldClose(m_GLFWwindow, GLFW_TRUE);
         }
     }
+
+    if (action == GLFW_RELEASE)
+    {
+        switch (key)
+        {
+        case GLFW_MOUSE_BUTTON_1:
+            m_Brush->ChangeMouseState(STATE_RELEASED);
+            break;
+        }
+    }
+}
+
+void Window::MouseButtonCallback(int button, int action, int mods)
+{
+    if (action == GLFW_PRESS || action == GLFW_REPEAT)
+    {
+        switch (button)
+        {
+        case GLFW_MOUSE_BUTTON_1:
+            m_Brush->ChangeMouseState(STATE_DRAG);
+            break;
+        }
+    }
+
+    if (action == GLFW_RELEASE)
+    {
+        switch (button)
+        {
+        case GLFW_MOUSE_BUTTON_1:
+            m_Brush->ChangeMouseState(STATE_RELEASED);
+            break;
+        }
+    }
 }
 
 void Window::TakeSnapshot()
@@ -284,7 +326,8 @@ void Window::TakeSnapshot()
     glPixelStorei(GL_PACK_SWAP_BYTES, GL_TRUE);
 
     // make sure the render texture is the last one bind to the GL_TEXTURE_2D target
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, m_ImageData);
+    //glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, m_ImageData); // returns the canvas image flipped and whitout the edits drawn onto it
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_ImageData); // returns the actual canvas modified, rows go from bottom to top, whereas in a png file the data is stored top to bottom, so fill the data row-by-row reversly
 
     unsigned int row_size = OUTPUT_IMAGE_CHANNELS * m_ImageWidth + 1;
 
@@ -297,15 +340,19 @@ void Window::TakeSnapshot()
         return;
     }
 
+    //rows go from bottom to top as returned from the texture
+    // whereas in a png file the data is stored top to bottom, so fill the data row by row reversely
     unsigned int i = 0;
-    while(i < m_ImageWidth * 4 * m_ImageHeight)
+    while (i < m_ImageWidth * 4 * m_ImageHeight)
     {
         if (i % (m_ImageWidth * 4) == 0) // index of the first pixel of a row of raw data
             filtered_data[filt_index++] = 0x00;
 
-        filtered_data[filt_index++] = m_ImageData[i++];
-        filtered_data[filt_index++] = m_ImageData[i++];
-        filtered_data[filt_index++] = m_ImageData[i++];
+        unsigned int start = m_ImageWidth * 4 * (m_ImageHeight - 1 - i / (m_ImageWidth * 4));
+
+        filtered_data[filt_index++] = m_ImageData[start + i++ % (m_ImageWidth * 4)];
+        filtered_data[filt_index++] = m_ImageData[start + i++ % (m_ImageWidth * 4)];
+        filtered_data[filt_index++] = m_ImageData[start + i++ % (m_ImageWidth * 4)];
         i++; // skip alpha channel
     }
 
@@ -321,21 +368,21 @@ void Window::TakeSnapshot()
 
 //void Window::TakeSnapshot()
 //{
-//    // define the pixel pack store state and alignment
-//    glPixelStorei(GL_PACK_ALIGNMENT, 1); //byte alignment, row of pixels start on multiple of 1 so whichever byte is possible
-//
+//    glPixelStorei(GL_PACK_ALIGNMENT, 1);
 //    glPixelStorei(GL_PACK_SWAP_BYTES, GL_TRUE);
 //
-//    // allocate memory for a 32 bits per channel rgba image
-//    unsigned int fBytesSize = m_ImageWidth * 4 * sizeof(float) * m_ImageHeight; // numebr of bytes in the rgab32f image
+//    // pack data as 32 bit float, multiply for 255 and round to uint8_t integer, then write to array of unsigned chars to send to pnglib
+//
+//    // allocate array of floats to store texture image data
+//    unsigned int fBytesSize = 4 * sizeof(float) * m_ImageWidth * m_ImageHeight;
 //    float* fBytes = (float*)malloc(fBytesSize);
 //
-//    //glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, fBytes);
-//    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, m_ImageData);
+//    // make sure the render texture is the last one bind to the GL_TEXTURE_2D target
+//    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, fBytes);
 //
-//    unsigned int row_size = OUTPUT_IMAGE_CHANNELS * m_ImageWidth + 1; 
+//    unsigned int row_size = OUTPUT_IMAGE_CHANNELS * m_ImageWidth + 1;
 //
-//    // allcate 4 bytes per channel
+//    unsigned int filt_index = 0;
 //    unsigned char* filtered_data = (unsigned char*)malloc(row_size * m_ImageHeight);
 //
 //    if (filtered_data == NULL)
@@ -344,15 +391,16 @@ void Window::TakeSnapshot()
 //        return;
 //    }
 //
-//    // for every channel convert it to an uint8_t, store it in an array and send it to pnglib
-//    for (unsigned int i = 0; i < fBytesSize; i++)
+//    unsigned int i = 0;
+//    while (i < m_ImageWidth * 4 * m_ImageHeight)
 //    {
-//        if (i % 3 == 0)
-//            continue;
+//        if (i % (m_ImageWidth * 4) == 0)
+//            filtered_data[filt_index++] = 0x00;
 //
-//        uint8_t uiByte = fBytes[i] * 255;
-//
-//        filtered_data[i - i / 4] = uiByte;
+//        filtered_data[filt_index++] = m_ImageData[i++] * 255;
+//        filtered_data[filt_index++] = m_ImageData[i++] * 255;
+//        filtered_data[filt_index++] = m_ImageData[i++] * 255;
+//        i++; // skip alpha channel
 //    }
 //
 //    // edit image path appending _edited to its name

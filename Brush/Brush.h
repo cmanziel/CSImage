@@ -12,6 +12,12 @@ typedef struct
 {
 	double x;
 	double y;
+
+	double drag_start_x;
+	double drag_start_y;
+
+	double drag_delta_x;
+	double drag_delta_y;
 } cursor;
 
 typedef struct {
@@ -22,9 +28,14 @@ typedef struct {
 
 #define DELTA_AREA_RADIUS 0
 
-enum brush_state
+enum draw_state
 {
 	STATE_DRAW, STATE_ERASE, STATE_INACTIVE, STATE_SOBEL, STATE_BLUR
+};
+
+enum mouse_state
+{
+	STATE_DRAG, STATE_RELEASED
 };
 
 class Brush
@@ -34,10 +45,17 @@ public:
 	~Brush();
 
 	cursor GetPosition();
-	void SetCursorPos(double xPos, double yPos, long time);
+	void SetPosition(double xPos, double yPos);
 
-	void ChangeState(uint8_t state);
-	uint8_t GetState();
+	//void ChangeState(uint8_t state);
+
+	void ChangeDrawState(uint8_t state);
+	void ChangeMouseState(uint8_t state);
+
+	//uint8_t GetState();
+
+	uint8_t GetDrawState();
+	uint8_t GetMouseState();
 
 	int GetRadius();
 
@@ -52,7 +70,12 @@ private:
 
 	cursor m_Cursor;
 
-	uint8_t m_State;
+	//cursor m_DragStart;
+	//cursor m_DragDelta;
+
+	//uint8_t m_State;
+	uint8_t m_DrawState; // handles the different drawing states, if the mouse button is not down the brush doens't draw anything
+	uint8_t m_MouseState; // handles the "dragging" state, when the mouse left button is hold down
 	color m_Color;
 };
 

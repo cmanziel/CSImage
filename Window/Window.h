@@ -76,6 +76,13 @@ public:
 
 	void KeyCallback(int key, int scancode, int action, int mods);
 
+	virtual void mouse_button_callback(int button, int action, int mods)
+	{
+		MouseButtonCallback(button, action, mods);
+	}
+
+	void MouseButtonCallback(int button, int action, int mods);
+
 private:
 	GLFWwindow* m_GLFWwindow;
 	int m_Width;
@@ -100,6 +107,13 @@ private:
 		Window* win = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
 		if (win)
 			win->key_callback(key, scancode, action, mods);
+	}
+
+	static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+	{
+		Window* win = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
+		if (win)
+			win->mouse_button_callback(button, action, mods);
 	}
 };
 

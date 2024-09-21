@@ -88,7 +88,9 @@ Renderer::Renderer(Window* win)
 
 void Renderer::SelectShader()
 {
-	uint8_t brushState = m_Window->GetBrush()->GetState();
+	uint8_t mouseState = m_Window->GetBrush()->GetMouseState();
+	uint8_t brushState = m_Window->GetBrush()->GetDrawState();
+
 	int windowState = m_Window->GetState();
 
 	cursor curs = m_Window->GetCursor();
@@ -97,7 +99,10 @@ void Renderer::SelectShader()
 	unsigned int radius = m_Window->GetBrush()->GetRadius();
 
 	// the cursor pos must be related to the render area coordinates
-	float cursorPos[2] = { curs.x - rendArea.x, curs.y - (rendArea.y - rendArea.height)};
+	float cursorPos[2] = { curs.x - rendArea.x, curs.y - (rendArea.y - rendArea.height) };
+
+	if (mouseState != STATE_DRAG)
+		return;
 
 	switch (brushState)
 	{
@@ -134,9 +139,44 @@ void Renderer::SelectShader()
 	}
 }
 
+void Renderer::AdjustRenderQuad()
+{
+	if (m_Window->GetBrush()->GetDrawState() != STATE_INACTIVE)
+		return;
+
+	Brush* brush = m_Window->GetBrush();
+
+	if (brush->GetMouseState() != STATE_DRAG)
+		return;
+
+	cursor curs = brush->GetPosition();
+
+	float shiftX = curs.drag_delta_x / m_Window->GetWidth();
+	float shiftY = curs.drag_delta_y / m_Window->GetHeight();
+
+	// shift the render area vertices' coordinates by shiftX and shiftY
+	quad[0] += shiftX;
+	quad[1] += shiftY;
+	quad[4] += shiftX;
+	quad[5] += shiftY;
+	quad[8] += shiftX;
+	quad[9] += shiftY;
+	quad[12] += shiftX;
+	quad[13] += shiftY;
+	quad[16] += shiftX;
+	quad[17] += shiftY;
+	quad[20] += shiftX;
+	quad[21] += shiftY;
+
+	// send to GPU, or map buffer and change the values directly
+	glBindBuffer(GL_ARRAY_BUFFER, m_ScreenQuadBuffer);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, 24 * sizeof(float), quad);
+}
+
 void Renderer::Draw()
 {
 	SelectShader();
+	AdjustRenderQuad();
 
 	if (m_CurrentShader != NULL)
 		m_CurrentShader->Execute();
