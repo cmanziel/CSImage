@@ -84,6 +84,15 @@ Renderer::Renderer(Window* win)
 
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+	glGenBuffers(1, &m_ImageMoveBuffer);
+	// bind the buffer to the GL_SHADER_STORAGE binding point, do glBufferData
+	// and then bind the buffer to a target index that corresponds with the compute shader
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_ImageMoveBuffer);
+	float shift[2] = { 0.0f, 0.0f };
+	glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * sizeof(float), shift, GL_STATIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, m_ImageMoveBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
 void Renderer::SelectShader()
@@ -141,36 +150,31 @@ void Renderer::SelectShader()
 
 void Renderer::AdjustRenderQuad()
 {
-	if (m_Window->GetBrush()->GetDrawState() != STATE_INACTIVE)
-		return;
-
 	Brush* brush = m_Window->GetBrush();
-
-	if (brush->GetMouseState() != STATE_DRAG)
-		return;
 
 	cursor curs = brush->GetPosition();
 
-	float shiftX = curs.drag_delta_x / m_Window->GetWidth();
-	float shiftY = curs.drag_delta_y / m_Window->GetHeight();
+	printf("u: %d\tv: %d\n", (int)(curs.x - curs.drag_delta_x), (int)(curs.y - curs.drag_delta_y));
 
-	// shift the render area vertices' coordinates by shiftX and shiftY
-	quad[0] += shiftX;
-	quad[1] += shiftY;
-	quad[4] += shiftX;
-	quad[5] += shiftY;
-	quad[8] += shiftX;
-	quad[9] += shiftY;
-	quad[12] += shiftX;
-	quad[13] += shiftY;
-	quad[16] += shiftX;
-	quad[17] += shiftY;
-	quad[20] += shiftX;
-	quad[21] += shiftY;
+	if (brush->GetDrawState() != STATE_INACTIVE || brush->GetMouseState() != STATE_DRAG)
+		return;
 
-	// send to GPU, or map buffer and change the values directly
-	glBindBuffer(GL_ARRAY_BUFFER, m_ScreenQuadBuffer);
-	glBufferSubData(GL_ARRAY_BUFFER, 0, 24 * sizeof(float), quad);
+	//cursor curs = brush->GetPosition();
+
+	//float shiftX = curs.drag_delta_x / m_Window->GetWidth();
+	//float shiftY = curs.drag_delta_y / m_Window->GetHeight();
+
+	//printf("ddx: %f\tddy: %f\n", curs.drag_delta_x, curs.drag_delta_y);
+
+	//printf("u: %d\tv: %d\n", (int)(curs.x - curs.drag_delta_x), (int)(curs.y - curs.drag_delta_y));
+
+	float shift[2];
+
+	shift[0] = (float)curs.drag_delta_x / m_Window->GetRenderArea().width * 2;
+	shift[1] = (float)curs.drag_delta_y / m_Window->GetRenderArea().height * 2;
+
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_ImageMoveBuffer);
+	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(float), shift);
 }
 
 void Renderer::Draw()

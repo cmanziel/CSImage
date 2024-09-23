@@ -7,11 +7,9 @@ Window::Window(char* path)
 {
     InitWindow();
 
-    glfwGetCursorPos(m_GLFWwindow, &m_Cursor.x, &m_Cursor.y);
+    m_Brush = new Brush(0.0f, 0.0f);
 
-    float pos[] = { m_Cursor.x, m_Cursor.y };
-
-    m_Brush = new Brush(m_Cursor.x, m_Cursor.y);
+    float pos[2] = { 0.0f, 0.0f };
 
     // move inside brush class
     // generate buffer and bind it to the GL_SHADER_STORAGE_BUFFER binding point
@@ -236,18 +234,16 @@ void Window::CursorMovement()
         //if (glfwRawMouseMotionSupported())
         //    glfwSetInputMode(m_GLFWwindow, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
         left = false;
+
+        //m_Brush->SetPosition(m_Cursor.x - m_RenderArea.x, m_Cursor.y - (m_RenderArea.y + m_RenderArea.height));
+        m_Brush->SetPosition(m_Cursor.x - m_RenderArea.x, (m_RenderArea.y + m_RenderArea.height) - m_Cursor.y);
     }
 
-    m_Brush->SetPosition(m_Cursor.x, m_Cursor.y);
-
-    //cursor curs = m_Brush->GetPosition();
-    //printf("cx: %f\tcy: %f\n", curs.x, curs.y);
-
-    float pos[] = { m_Cursor.x - m_RenderArea.x, m_Cursor.y - (m_Height - m_RenderArea.y - m_RenderArea.height) };
+    float pos[] = { m_Cursor.x - m_RenderArea.x, (m_RenderArea.y + m_RenderArea.height) - m_Cursor.y };
 
     // bind the buffer first
     // better if the buffer is mapped before the main application loop and the only its value on the application side is modified, this modification through teh mapping will reflect on the GPU
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_CursorBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorBuffer);
     glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(float), pos);
 }
 
@@ -365,51 +361,3 @@ void Window::TakeSnapshot()
 
     free(filtered_data);
 }
-
-//void Window::TakeSnapshot()
-//{
-//    glPixelStorei(GL_PACK_ALIGNMENT, 1);
-//    glPixelStorei(GL_PACK_SWAP_BYTES, GL_TRUE);
-//
-//    // pack data as 32 bit float, multiply for 255 and round to uint8_t integer, then write to array of unsigned chars to send to pnglib
-//
-//    // allocate array of floats to store texture image data
-//    unsigned int fBytesSize = 4 * sizeof(float) * m_ImageWidth * m_ImageHeight;
-//    float* fBytes = (float*)malloc(fBytesSize);
-//
-//    // make sure the render texture is the last one bind to the GL_TEXTURE_2D target
-//    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, fBytes);
-//
-//    unsigned int row_size = OUTPUT_IMAGE_CHANNELS * m_ImageWidth + 1;
-//
-//    unsigned int filt_index = 0;
-//    unsigned char* filtered_data = (unsigned char*)malloc(row_size * m_ImageHeight);
-//
-//    if (filtered_data == NULL)
-//    {
-//        printf("error allocating the output image\n");
-//        return;
-//    }
-//
-//    unsigned int i = 0;
-//    while (i < m_ImageWidth * 4 * m_ImageHeight)
-//    {
-//        if (i % (m_ImageWidth * 4) == 0)
-//            filtered_data[filt_index++] = 0x00;
-//
-//        filtered_data[filt_index++] = m_ImageData[i++] * 255;
-//        filtered_data[filt_index++] = m_ImageData[i++] * 255;
-//        filtered_data[filt_index++] = m_ImageData[i++] * 255;
-//        i++; // skip alpha channel
-//    }
-//
-//    // edit image path appending _edited to its name
-//    strcpy(m_Path + strlen(m_Path) - strlen(".png"), "\0");
-//
-//    const char* path = strcat(m_Path, "_edited.png");
-//
-//    create_image(filtered_data, path, m_ImageWidth, m_ImageHeight, OUTPUT_IMAGE_CHANNELS, 8);
-//
-//    free(filtered_data);
-//    free(fBytes);
-//}

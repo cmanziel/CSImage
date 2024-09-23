@@ -32,20 +32,22 @@ cursor Brush::GetPosition()
 
 void Brush::SetPosition(double xPos, double yPos)
 {
-	if (m_MouseState == STATE_DRAG)
+	//m_Cursor.x = xPos;
+	//m_Cursor.y = yPos;
+
+	if (m_MouseState == STATE_DRAG && m_DrawState == STATE_INACTIVE)
 	{
-	/*	m_Cursor.drag_delta_x = m_Cursor.x - m_Cursor.drag_start_x;
-		m_Cursor.drag_delta_y = m_Cursor.y - m_Cursor.drag_start_y;*/
+		//m_Cursor.drag_delta_x = m_Cursor.x - m_Cursor.drag_start_x;
+		//m_Cursor.drag_delta_y = m_Cursor.y - m_Cursor.drag_start_y;
 
-		m_Cursor.drag_delta_x = xPos - m_Cursor.x;
-		m_Cursor.drag_delta_y = m_Cursor.y - yPos; // viewporth y axis is flipped relative to client area's y axis
-
-		//m_DragDelta.x = m_Cursor.x - m_DragStart.x;
-		//m_DragDelta.y = m_Cursor.y - m_DragStart.y;
+		m_Cursor.drag_delta_x += xPos - m_Cursor.x;
+		m_Cursor.drag_delta_y += yPos - m_Cursor.y;
 	}
 
 	m_Cursor.x = xPos;
 	m_Cursor.y = yPos;
+
+	//printf("cx: %f\tcy: %f\n", m_Cursor.x, m_Cursor.y);
 }
 
 int Brush::GetRadius()
@@ -118,8 +120,8 @@ void Brush::ChangeMouseState(uint8_t state)
 		m_Cursor.drag_start_x = m_Cursor.x;
 		m_Cursor.drag_start_y = m_Cursor.y;
 
-		m_Cursor.drag_delta_x = 0.0;
-		m_Cursor.drag_delta_y = 0.0;
+		//m_Cursor.drag_delta_x = 0.0;
+		//m_Cursor.drag_delta_y = 0.0;
 	}
 		/*m_DragStart = m_Cursor;*/
 
