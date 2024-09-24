@@ -35,8 +35,9 @@ private:
 
 	//GLuint m_Framebuffer;
 	GLuint m_ScreenQuadBuffer;
-	float m_RenderingQuad[24]; // coordinates for the quad to which the texture will be mapped
-	GLuint m_ImageMoveBuffer;
+	float m_RenderingQuad[24]; // coordinates for the quad to which the texture will be mappe
+	GLuint m_TexShiftBuffer;
+	GLuint m_CursorUVBuffer;
 };
 
 #endif // !1

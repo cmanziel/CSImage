@@ -85,13 +85,18 @@ Renderer::Renderer(Window* win)
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
-	glGenBuffers(1, &m_ImageMoveBuffer);
-	// bind the buffer to the GL_SHADER_STORAGE binding point, do glBufferData
-	// and then bind the buffer to a target index that corresponds with the compute shader
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_ImageMoveBuffer);
-	float shift[2] = { 0.0f, 0.0f };
-	glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * sizeof(float), shift, GL_STATIC_DRAW);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, m_ImageMoveBuffer);
+	glGenBuffers(1, &m_TexShiftBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_TexShiftBuffer);
+	float shift[] = { 0.0f, 0.0f };
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(shift), shift, GL_STATIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, m_TexShiftBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+	glGenBuffers(1, &m_CursorUVBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorUVBuffer);
+	int uv[] = { 0, 0 };
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(uv), uv, GL_STATIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_CursorUVBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 }
 
@@ -154,7 +159,15 @@ void Renderer::AdjustRenderQuad()
 
 	cursor curs = brush->GetPosition();
 
-	printf("u: %d\tv: %d\n", (int)(curs.x - curs.drag_delta_x), (int)(curs.y - curs.drag_delta_y));
+	int cursor_uv[2];
+
+	cursor_uv[0] = (int)(curs.x - curs.drag_delta_x);
+	cursor_uv[1] = (int)(curs.y - curs.drag_delta_y);
+
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorUVBuffer);
+	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(cursor_uv), cursor_uv);
+
+	//printf("u: %d\tv: %d\n", (int)(curs.x - curs.drag_delta_x), (int)(curs.y - curs.drag_delta_y));
 
 	if (brush->GetDrawState() != STATE_INACTIVE || brush->GetMouseState() != STATE_DRAG)
 		return;
@@ -164,17 +177,21 @@ void Renderer::AdjustRenderQuad()
 	//float shiftX = curs.drag_delta_x / m_Window->GetWidth();
 	//float shiftY = curs.drag_delta_y / m_Window->GetHeight();
 
-	//printf("ddx: %f\tddy: %f\n", curs.drag_delta_x, curs.drag_delta_y);
+	printf("ddx: %f\tddy: %f\n", curs.drag_delta_x, curs.drag_delta_y);
+
+
+
+
 
 	//printf("u: %d\tv: %d\n", (int)(curs.x - curs.drag_delta_x), (int)(curs.y - curs.drag_delta_y));
 
 	float shift[2];
 
-	shift[0] = (float)curs.drag_delta_x / m_Window->GetRenderArea().width * 2;
-	shift[1] = (float)curs.drag_delta_y / m_Window->GetRenderArea().height * 2;
+	shift[0] = curs.drag_delta_x / m_Window->GetRenderArea().width;
+	shift[1] = curs.drag_delta_y / m_Window->GetRenderArea().height;
 
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_ImageMoveBuffer);
-	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(float), shift);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_TexShiftBuffer);
+	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(shift), shift);
 }
 
 void Renderer::Draw()
@@ -202,6 +219,8 @@ Renderer::~Renderer()
 	glDeleteTextures(1, &m_RenderTexture);
 	glDeleteTextures(1, &m_Canvas);
 	glDeleteBuffers(1, &m_ScreenQuadBuffer);
+	glDeleteBuffers(1, &m_TexShiftBuffer);
+	glDeleteBuffers(1, &m_CursorUVBuffer);
 }
 
 void setRenderingAreaQuad(float* quad, render_area area)

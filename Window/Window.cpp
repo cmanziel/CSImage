@@ -9,15 +9,6 @@ Window::Window(char* path)
 
     m_Brush = new Brush(0.0f, 0.0f);
 
-    float pos[2] = { 0.0f, 0.0f };
-
-    // move inside brush class
-    // generate buffer and bind it to the GL_SHADER_STORAGE_BUFFER binding point
-    glGenBuffers(1, &m_CursorBuffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorBuffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * sizeof(float), pos, GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_CursorBuffer);
-
     if (m_Image != NULL)
         fclose(m_Image);
 }
@@ -27,8 +18,8 @@ void Window::InitWindow()
     m_Image = fopen(m_Path, "rb");
     unsigned char* idat_data, * image_pixel_data;
 
-    m_Width = 1800;
-    m_Height = 1000;
+    m_Width = 1900;
+    m_Height = 1200;
 
     if (m_Image != NULL)
     {
@@ -117,8 +108,6 @@ Window::~Window()
     free(m_ImageData);
 
     delete m_Brush;
-
-    glDeleteBuffers(1, &m_CursorBuffer);
 }
 
 void Window::Update()
@@ -224,6 +213,8 @@ void Window::CursorMovement()
 
         left = true;
 
+        //m_Brush->ChangeMouseState(STATE_RELEASED);
+
         return;
     }
     else
@@ -236,15 +227,9 @@ void Window::CursorMovement()
         left = false;
 
         //m_Brush->SetPosition(m_Cursor.x - m_RenderArea.x, m_Cursor.y - (m_RenderArea.y + m_RenderArea.height));
-        m_Brush->SetPosition(m_Cursor.x - m_RenderArea.x, (m_RenderArea.y + m_RenderArea.height) - m_Cursor.y);
     }
 
-    float pos[] = { m_Cursor.x - m_RenderArea.x, (m_RenderArea.y + m_RenderArea.height) - m_Cursor.y };
-
-    // bind the buffer first
-    // better if the buffer is mapped before the main application loop and the only its value on the application side is modified, this modification through teh mapping will reflect on the GPU
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorBuffer);
-    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(float), pos);
+    m_Brush->SetPosition(m_Cursor.x - m_RenderArea.x, (m_RenderArea.y + m_RenderArea.height) - m_Cursor.y);
 }
 
 void Window::KeyCallback(int key, int scancode, int action, int mods)
@@ -266,8 +251,10 @@ void Window::KeyCallback(int key, int scancode, int action, int mods)
             m_Brush->ChangeDrawState(STATE_ERASE);
             break;
         case GLFW_MOUSE_BUTTON_1:
-            m_Brush->ChangeMouseState(STATE_DRAG);
-            break;
+        {
+            if(m_State == STATE_CURSOR_INSIDE)
+                m_Brush->ChangeMouseState(STATE_DRAG);
+        } break;
         case GLFW_KEY_UP:
             m_Brush->SetRadius(+1);
             break;

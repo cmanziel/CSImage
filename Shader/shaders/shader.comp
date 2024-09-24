@@ -9,14 +9,9 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in; // every local_
 uniform layout(binding = 0, rgba32f) restrict image2D edited;
 uniform layout(binding = 1, rgba32f) readonly image2D canvas;
 
-layout(std430, binding = 2) buffer cursorPos
+layout(std430, binding = 2) buffer cursorUV
 {
-	vec2 cursor_pos;
-};
-
-layout(std430, binding = 3) buffer texShift
-{
-	vec2 tex_shift;
+	ivec2 cursor_uv;
 };
 
 layout(location = 3) uniform int brushRadius;
@@ -34,12 +29,8 @@ void main()
 	if(length(cursorToGrid) > brushRadius / 2)
 		return;
 
-	ivec2 shift = ivec2(int(tex_shift[0] * dims.x), int(tex_shift[1] * dims.y));
+	ivec2 uv = cursor_uv - ivec2(brushRadius / 2, brushRadius / 2) + ivec2(gl_GlobalInvocationID.xy);
 
-	ivec2 base_uv = ivec2(int(cursor_pos.x) - brushRadius / 2, int(cursor_pos.y) - brushRadius / 2) - shift;	//ivec2 base_uv = ivec2(int(cursor_pos.x) - brushRadius / 2, int(dims.y - cursor_pos.y) - brushRadius / 2) - ivec2(int(tex_shift.x * dims.x), int(tex_shift.y * dims.y));
-
-	ivec2 uv = base_uv + ivec2(gl_GlobalInvocationID.xy);
-	
 	switch(drawFlag)
 	{
 		case DRAW:

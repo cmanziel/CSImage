@@ -91,7 +91,6 @@ private:
 	int m_ImageHeight;
 
 	cursor m_Cursor;
-	GLuint m_CursorBuffer;
 
 	Brush* m_Brush;
 	uint8_t m_State;
