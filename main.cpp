@@ -4,26 +4,22 @@
 #include "Window/Window.h"
 #include "Renderer/Renderer.h"
 
-/* TODO: different programs for different brush states
-	* state machine for the renderer
-	* keep a current shader field so that its use function will be called accordingly
-*/
-
-
-/* TODO: edge detection on edited image
-	* the problem with doing edge detection on the edited image is that imageStore operations get the value of a pixel that has just modified this dispatch of the program
-	* whereas it should be done on the result edited image from the last dispatch
-	SOLUTION?
-	* splitting the process in two: in the first half all the colors for the pixels in the brush area are calculated based on the current state of the image
-	* then a second dispatch of the shader does all the imageStore function calls with the calculated values, so that no pixel is calculated based on other ones modified in the current dispatch
-	* a shader storage buffer is needed: modify it in the first part and access it in the second
-	* buffer mapping?
+/* TODO:
+	* blur writes to the texture in the same way the sobelShader does: stores in a temporary canvas the last version of the edited image, calcualtes the brush area modified pixels on the temporary canvas, and the modifies every point in the brush area with the values calculated
+	* so in the blur shader use ther same brush grid storage buffer and temporary canvas used in the sobelShader by binding to their same binding points
+	* for clarity declare the temporary canvas texture and brush grid buffer in the Renderer constructor, or in the ComputeShader base class constructor (which is called by every derived compute shader's constructor so check if they have already been initialized)
 */
 
 int main()
 {
 	// Renderer sets up the shader in its constructor
-	char path[] = "images/drawing_0.png";
+	//char path[] = "images/drawing_0.png";
+	//char path[] = "images/block_pointed.png";
+	char path[] = "images/terrain.png";
+	//char path[] = "images/spheres.png";
+	//char path[] = "images/screenshot_0.png";
+	//char path[] = "images/screenshot_1.png";
+	//char path[] = "images/screenshot_2.png";
 
 	Window window(path);
 	GLFWwindow* glfwWin = window.GetGLFWwindow();

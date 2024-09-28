@@ -1,7 +1,7 @@
 #include "SobelShader.h"
 
-SobelShader::SobelShader(std::string csPath, unsigned int imageWidth, unsigned int imageHeight)
-	: ComputeShader(csPath), m_ImageWidth(imageWidth), m_ImageHeight(imageHeight)
+SobelShader::SobelShader(std::string csPath)
+	: ComputeShader(csPath), m_BrushRadius(0)
 {
 	// set up shader buffer storage object
 	glGenBuffers(1, &m_GridBuffer);
@@ -10,19 +10,23 @@ SobelShader::SobelShader(std::string csPath, unsigned int imageWidth, unsigned i
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, m_GridBuffer);
 
 	glGenTextures(1, &m_SobelCanvas);
-	glBindTexture(GL_TEXTURE_2D, m_SobelCanvas);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_ImageWidth, m_ImageHeight, 0, GL_RGBA, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
 	glBindImageTexture(2, m_SobelCanvas, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
 }
 
-void SobelShader::UpdateInputs(unsigned int brushRadius, float* cursorPos)
+void SobelShader::UpdateInputs(unsigned int brushRadius, unsigned int imageWidth, unsigned int imageHeight)
 {
 	glUniform1i(glGetUniformLocation(m_ID, "brushRadius"), brushRadius);
 
 	m_BrushRadius = brushRadius;
+	m_ImageWidth = imageWidth;
+	m_ImageHeight = imageHeight;
+
+	// update sobel canvas with the current editable dimensions
+	// the texture will be used in the shader (dispatched work groups according to Editable dimensions)
+	glBindTexture(GL_TEXTURE_2D, m_SobelCanvas);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_ImageWidth, m_ImageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 }
 
 void SobelShader::UpdateSobelCanvas()

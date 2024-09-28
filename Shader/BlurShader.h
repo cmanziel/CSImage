@@ -1,31 +1,29 @@
-#ifndef SOBEL_H
-#define SOBEL_H
+#ifndef BLUR_H
+#define BLUR_H
 
 #include "ComputeShader.h"
 
 #define MAX_BRUSH_RADIUS 200
 
-enum sobel_states
+enum blur_states
 {
-	STATE_CALCULATE_GRID, STATE_DRAW_GRID, STATE_UPDATE_SOBEL_CANVAS
+	STATE_BLUR_CALCULATE_GRID, STATE_BLUR_DRAW_GRID, STATE_BLUR_UPDATE_CANVAS
 };
 
-class SobelShader : public ComputeShader
+class BlurShader : public ComputeShader
 {
 public:
 	//using ComputeShader::ComputeShader;
 
-	SobelShader(std::string source);
-	~SobelShader();
+	BlurShader(std::string source);
+	~BlurShader();
 
-	void UpdateSobelCanvas();
+	void UpdateBlurCanvas();
 	void UpdateInputs(unsigned int brushRadius, unsigned int imageWidth, unsigned int imageHeight);
 
 	void Execute() override;
 private:
 	unsigned int m_BrushRadius;
-	GLuint m_GridBuffer;
-	GLuint m_SobelCanvas;
 	unsigned int m_ImageWidth;
 	unsigned int m_ImageHeight;
 };

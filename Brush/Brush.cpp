@@ -3,10 +3,14 @@
 float vector_length(cursor v);
 
 Brush::Brush(double cursor_x, double cursor_y)
-	: m_State(STATE_INACTIVE)
+	: m_DrawState(STATE_INACTIVE), m_MouseState(STATE_RELEASED)
 {
 	m_Cursor.x = cursor_x;
 	m_Cursor.y = cursor_y;
+	m_Cursor.drag_start_x = cursor_x;
+	m_Cursor.drag_start_y = cursor_y;
+	m_Cursor.drag_delta_x = 0.0;
+	m_Cursor.drag_delta_y = 0.0;
 
 	m_Radius = BRUSH_RADIUS;
 
@@ -26,10 +30,24 @@ cursor Brush::GetPosition()
 	return m_Cursor;
 }
 
-void Brush::SetCursorPos(double xPos, double yPos, long time)
+void Brush::SetPosition(double xPos, double yPos)
 {
+	//m_Cursor.x = xPos;
+	//m_Cursor.y = yPos;
+
+	if (m_MouseState == STATE_DRAG && m_DrawState == STATE_INACTIVE)
+	{
+		//m_Cursor.drag_delta_x = m_Cursor.x - m_Cursor.drag_start_x;
+		//m_Cursor.drag_delta_y = m_Cursor.y - m_Cursor.drag_start_y;
+
+		m_Cursor.drag_delta_x = xPos - m_Cursor.x;
+		m_Cursor.drag_delta_y = yPos - m_Cursor.y;
+	}
+
 	m_Cursor.x = xPos;
 	m_Cursor.y = yPos;
+
+	//printf("cx: %f\tcy: %f\n", m_Cursor.x, m_Cursor.y);
 }
 
 int Brush::GetRadius()
@@ -76,18 +94,52 @@ bool Brush::IsPointInside(int grid_point_x, int grid_point_y)
 	return false;
 }
 
-void Brush::ChangeState(uint8_t state)
+//void Brush::ChangeState(uint8_t state)
+//{
+//	// to this function are passed either STATE_DRAW or STATE_ERASE, if the current state is equal to the argument then the action was to stop drawing or erasing
+//	if (state == m_State)
+//		m_State = STATE_INACTIVE;
+//	else
+//		m_State = state;
+//}
+
+void Brush::ChangeDrawState(uint8_t state)
 {
 	// to this function are passed either STATE_DRAW or STATE_ERASE, if the current state is equal to the argument then the action was to stop drawing or erasing
-	if (state == m_State)
-		m_State = STATE_INACTIVE;
+	if (state == m_DrawState)
+		m_DrawState = STATE_INACTIVE;
 	else
-		m_State = state;
+		m_DrawState = state;
 }
 
-uint8_t Brush::GetState()
+void Brush::ChangeMouseState(uint8_t state)
 {
-	return m_State;
+	// if state changes from STATE_RELEASED to STATE_DRAG, set the cursor position as the m_DragStart field
+	if (m_MouseState == STATE_RELEASED && state == STATE_DRAG)
+	{
+		m_Cursor.drag_start_x = m_Cursor.x;
+		m_Cursor.drag_start_y = m_Cursor.y;
+
+		m_Cursor.drag_delta_x = 0.0;
+		m_Cursor.drag_delta_y = 0.0;
+	}
+
+	m_MouseState = state;
+}
+
+//uint8_t Brush::GetState()
+//{
+//	return m_State;
+//}
+
+uint8_t Brush::GetDrawState()
+{
+	return m_DrawState;
+}
+
+uint8_t Brush::GetMouseState()
+{
+	return m_MouseState;
 }
 
 float vector_length(cursor v)
