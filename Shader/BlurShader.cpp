@@ -1,16 +1,22 @@
 #include "BlurShader.h"
 
-BlurShader::BlurShader(std::string csPath, unsigned int imageWidth, unsigned int imageHeight)
-	: ComputeShader(csPath), m_ImageWidth(imageWidth), m_ImageHeight(imageHeight)
+BlurShader::BlurShader(std::string csPath)
+	: ComputeShader(csPath)
 {
+	// these will be set every time a new Editable is used
+	m_ImageWidth = 0;
+	m_ImageHeight = 0;
 
+	m_BrushRadius = 0;
 }
 
-void BlurShader::UpdateInputs(unsigned int brushRadius, float* cursorPos)
+void BlurShader::UpdateInputs(unsigned int brushRadius, unsigned int imageWidth, unsigned int imageHeight)
 {
 	glUniform1i(glGetUniformLocation(m_ID, "brushRadius"), brushRadius);
-
 	m_BrushRadius = brushRadius;
+
+	m_ImageWidth = imageWidth;
+	m_ImageHeight = imageHeight;
 }
 
 void BlurShader::UpdateBlurCanvas()

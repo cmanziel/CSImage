@@ -40,8 +40,8 @@ void Brush::SetPosition(double xPos, double yPos)
 		//m_Cursor.drag_delta_x = m_Cursor.x - m_Cursor.drag_start_x;
 		//m_Cursor.drag_delta_y = m_Cursor.y - m_Cursor.drag_start_y;
 
-		m_Cursor.drag_delta_x += xPos - m_Cursor.x;
-		m_Cursor.drag_delta_y += yPos - m_Cursor.y;
+		m_Cursor.drag_delta_x = xPos - m_Cursor.x;
+		m_Cursor.drag_delta_y = yPos - m_Cursor.y;
 	}
 
 	m_Cursor.x = xPos;
@@ -120,10 +120,9 @@ void Brush::ChangeMouseState(uint8_t state)
 		m_Cursor.drag_start_x = m_Cursor.x;
 		m_Cursor.drag_start_y = m_Cursor.y;
 
-		//m_Cursor.drag_delta_x = 0.0;
-		//m_Cursor.drag_delta_y = 0.0;
+		m_Cursor.drag_delta_x = 0.0;
+		m_Cursor.drag_delta_y = 0.0;
 	}
-		/*m_DragStart = m_Cursor;*/
 
 	m_MouseState = state;
 }

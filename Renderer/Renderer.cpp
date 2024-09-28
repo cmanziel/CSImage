@@ -1,103 +1,78 @@
 #include "Renderer.h"
 
-float quad[] = {
-	// 2 floats for postions coordinates, 2 for texture coordinates
-	-1.0f, 1.0f, 0.0f, 1.0f,
-	-1.0f, -1.0f, 0.0f, 0.0f,
-	1.0f, -1.0f, 1.0f, 0.0f,
-	-1.0f, 1.0f, 0.0f, 1.0f,
-	1.0f, -1.0f, 1.0f, 0.0f,
-	1.0f, 1.0f, 1.0f, 1.0f
-};
-
-void setRenderingAreaQuad(float* quad, render_area area);
-
 Renderer::Renderer(Window* win)
 	: m_DrawEraseShader("Shader/shaders/shader.comp"),
 	m_VFShader("Shader/shaders/shader.vert", "Shader/shaders/shader.frag"),
 	m_CanvasShader("Shader/shaders/canvas.comp"),
-	m_SobelShader("Shader/shaders/sobelShader.comp", win->GetImageWidth(), win->GetImageHeight()),
-	m_BlurShader("Shader/shaders/blurShader.comp", win->GetImageWidth(), win->GetImageHeight()),
+	m_SobelShader("Shader/shaders/sobelShader.comp"),
+	m_BlurShader("Shader/shaders/blurShader.comp"),
+	m_CurrentEditable(win->GetCurrentEditable()),
 	m_CurrentShader(NULL),
 	m_Window(win)
 {
-	int imageWidth = win->GetImageWidth();
-	int imageHeight = win->GetImageHeight();
-
 	m_CanvasShader.CreateProgram();
 	m_VFShader.CreateProgram();
 	m_DrawEraseShader.CreateProgram();
 	m_SobelShader.CreateProgram();
 	m_BlurShader.CreateProgram();
 
-	// set up the texture to render to
-	// assure the texture is complete (see https://www.khronos.org/opengl/wiki/Texture#Texture_completeness)
-	glGenTextures(1, &m_RenderTexture);
-	glBindTexture(GL_TEXTURE_2D, m_RenderTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	// mipmap completeness, integer color format do not support linear filtering, use GL_NEAREST
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-	// access paramter has to be GL_READ_WRITE if a blit operation is called on the framebuffer to whcih the image is attached?
-	glBindImageTexture(0, m_RenderTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
-
-	if (m_Window->GetImageData() != NULL)
-	{
-		canvas_data cd = m_Window->GetCanvasTextureData();
-
-		// glTexImage2D arguments based on image format
-		glGenTextures(1, &m_Canvas);
-		glBindTexture(GL_TEXTURE_2D, m_Canvas);
-		//glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8UI, imageWidth, imageHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, m_Window->GetImageData());
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, imageWidth, imageHeight, 0, cd.pixel_format, cd.pixel_type, m_Window->GetImageData());
-
-		// for texture completeness
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glBindImageTexture(1, m_Canvas, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
-
-		Shader::Use(m_CanvasShader.GetID());
-		m_CanvasShader.SetDimensions(imageWidth, imageHeight);
-		m_CanvasShader.Execute();
-
-		// the whole image number of pixels is dispatch initially so that the m_RenderTexture already has the canvas data wrote to itself
-		// in this way only the brush area of pixel is dispatched when drawing
-		// otherwise without doing this the whole image would be dispatched and each uv checked if it was inside the brush area
-		// just dispatching the brush without initializing the canvas would result in a black canvas and the brush drawing the canvas when in the ERASE state
-	}
-
-	// screen quad VBO
-	//setRenderingAreaQuad(m_RenderingQuad, win->GetRenderArea());
-
-	memcpy(m_RenderingQuad, quad, 24 * sizeof(float));
+	m_RenderingQuad = m_CurrentEditable->GetRenderingQuad();
 
 	glGenBuffers(1, &m_ScreenQuadBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, m_ScreenQuadBuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(m_RenderingQuad), m_RenderingQuad, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, 24 * sizeof(float), m_RenderingQuad, GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
 
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	glGenBuffers(1, &m_TexShiftBuffer);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_TexShiftBuffer);
-	float shift[] = { 0.0f, 0.0f };
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(shift), shift, GL_STATIC_DRAW);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, m_TexShiftBuffer);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+	float cursorPos[2] = {
+		win->GetCursor().x,
+		win->GetCursor().y
+	};
+	glGenBuffers(1, &m_CursorBuffer);
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorBuffer);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(cursorPos), cursorPos, GL_STATIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, CURSOR_BUFFER_UNIT, m_CursorBuffer);
 
-	glGenBuffers(1, &m_CursorUVBuffer);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorUVBuffer);
-	int uv[] = { 0, 0 };
-	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(uv), uv, GL_STATIC_DRAW);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, m_CursorUVBuffer);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+	// execute the canvas shader for the initial image
+	glBindImageTexture(RENDER_TEXTURE_UNIT, m_CurrentEditable->GetRenderTexture(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+	glBindImageTexture(CANVAS_TEXTURE_UNIT, m_CurrentEditable->GetCanvasTexture(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+
+	render_area ra = m_CurrentEditable->GetRenderArea();
+	Shader::Use(m_CanvasShader.GetID());
+	m_CanvasShader.SetDimensions(ra.width, ra.height);
+
+	// execute the current Editable's canvas shader dispatching the correct number of work groups based on its dimensions
+	m_CanvasShader.Execute();
+}
+
+void Renderer::SelectEditable()
+{
+	// send the current Editable's data to the shaders and then execute them
+	Editable* currentEditable = m_Window->GetCurrentEditable();
+
+	// if the current editable has changed bind the new image texture to the shader units
+	if (currentEditable != m_CurrentEditable)
+	{
+		m_CurrentEditable = currentEditable;
+
+		if (m_CurrentEditable != NULL)
+		{
+			glBindImageTexture(RENDER_TEXTURE_UNIT, m_CurrentEditable->GetRenderTexture(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+			glBindImageTexture(CANVAS_TEXTURE_UNIT, m_CurrentEditable->GetCanvasTexture(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+
+			render_area ra = currentEditable->GetRenderArea();
+			Shader::Use(m_CanvasShader.GetID());
+			m_CanvasShader.SetDimensions(ra.width, ra.height);
+
+			// execute the current Editable's canvas shader dispatching the correct number of work groups based on its dimensions
+			m_CanvasShader.Execute();
+		}
+	}
 }
 
 void Renderer::SelectShader()
@@ -105,18 +80,24 @@ void Renderer::SelectShader()
 	uint8_t mouseState = m_Window->GetBrush()->GetMouseState();
 	uint8_t brushState = m_Window->GetBrush()->GetDrawState();
 
-	int windowState = m_Window->GetState();
+	if (mouseState != STATE_DRAG || m_CurrentEditable == NULL)
+		return;
 
 	cursor curs = m_Window->GetCursor();
-	render_area rendArea = m_Window->GetRenderArea();
 
 	unsigned int radius = m_Window->GetBrush()->GetRadius();
 
-	// the cursor pos must be related to the render area coordinates
-	float cursorPos[2] = { curs.x - rendArea.x, curs.y - (rendArea.y - rendArea.height) };
+	render_area currentRA = m_CurrentEditable->GetRenderArea();
+	// get the current editable WindowToRenderArea coordinates
+	float cursorPos[2] = {
+		currentRA.cursor_x,
+		currentRA.cursor_y
+	};
 
-	if (mouseState != STATE_DRAG)
-		return;
+	// send to update inputs the cursor position relative to the current editable's reneder area
+	// send to the shader that data in the UpdateInputs method
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorBuffer);
+	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(cursorPos), cursorPos);
 
 	switch (brushState)
 	{
@@ -132,7 +113,7 @@ void Renderer::SelectShader()
 	} break;
 	case STATE_SOBEL: {
 		Shader::Use(m_SobelShader.GetID());
-		m_SobelShader.UpdateInputs(radius, cursorPos);
+		m_SobelShader.UpdateInputs(radius, currentRA.width, currentRA.height);
 		// update only at the frame when the brush state changes to STATE_SOBEL
 		if(m_CurrentShader != &m_SobelShader)
 			m_SobelShader.UpdateSobelCanvas();
@@ -141,7 +122,7 @@ void Renderer::SelectShader()
 	case STATE_BLUR:
 	{
 		Shader::Use(m_BlurShader.GetID());
-		m_BlurShader.UpdateInputs(radius, cursorPos);
+		m_BlurShader.UpdateInputs(radius, currentRA.width, currentRA.height);
 		if (m_CurrentShader != &m_BlurShader)
 			m_BlurShader.UpdateBlurCanvas();
 		m_CurrentShader = &m_BlurShader;
@@ -153,114 +134,34 @@ void Renderer::SelectShader()
 	}
 }
 
-void Renderer::AdjustRenderQuad()
-{
-	Brush* brush = m_Window->GetBrush();
-
-	cursor curs = brush->GetPosition();
-
-	int cursor_uv[2];
-
-	cursor_uv[0] = (int)(curs.x - curs.drag_delta_x);
-	cursor_uv[1] = (int)(curs.y - curs.drag_delta_y);
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorUVBuffer);
-	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(cursor_uv), cursor_uv);
-
-	//printf("u: %d\tv: %d\n", (int)(curs.x - curs.drag_delta_x), (int)(curs.y - curs.drag_delta_y));
-
-	if (brush->GetDrawState() != STATE_INACTIVE || brush->GetMouseState() != STATE_DRAG)
-		return;
-
-	//cursor curs = brush->GetPosition();
-
-	//float shiftX = curs.drag_delta_x / m_Window->GetWidth();
-	//float shiftY = curs.drag_delta_y / m_Window->GetHeight();
-
-	printf("ddx: %f\tddy: %f\n", curs.drag_delta_x, curs.drag_delta_y);
-
-
-
-
-
-	//printf("u: %d\tv: %d\n", (int)(curs.x - curs.drag_delta_x), (int)(curs.y - curs.drag_delta_y));
-
-	float shift[2];
-
-	shift[0] = curs.drag_delta_x / m_Window->GetRenderArea().width;
-	shift[1] = curs.drag_delta_y / m_Window->GetRenderArea().height;
-
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_TexShiftBuffer);
-	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(shift), shift);
-}
-
 void Renderer::Draw()
 {
+	SelectEditable();
 	SelectShader();
-	AdjustRenderQuad();
 
 	if (m_CurrentShader != NULL)
 		m_CurrentShader->Execute();
 
 	Shader::Use(m_VFShader.GetID());
 
-	// bind the render texture that will be applied to the quad
-	glBindTexture(GL_TEXTURE_2D, m_RenderTexture);
+	for (Editable* ed : m_Window->GetEditables())
+	{
+		// bind the m_CurrentEditable's rendering quad buffer, send data to OpenGL and draw the quad with the texture applied to it
+		m_RenderingQuad = ed->GetRenderingQuad();
+		glBindBuffer(GL_ARRAY_BUFFER, m_ScreenQuadBuffer);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, 24 * sizeof(float), m_RenderingQuad);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	// give to the sampler the same value of the currently active texture image unit: 0
-	glUniform1i(glGetUniformLocation(m_VFShader.GetID(), "tex"), 0);
-
-	// draw the screen quad onto which the texture is applied
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+		glBindTexture(GL_TEXTURE_2D, ed->GetRenderTexture());
+		glUniform1i(glGetUniformLocation(m_VFShader.GetID(), "tex"), 0);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+	}
 }
 
 Renderer::~Renderer()
 {
-	glDeleteTextures(1, &m_RenderTexture);
-	glDeleteTextures(1, &m_Canvas);
+	//glDeleteTextures(1, &m_RenderTexture);
+	//glDeleteTextures(1, &m_Canvas);
 	glDeleteBuffers(1, &m_ScreenQuadBuffer);
-	glDeleteBuffers(1, &m_TexShiftBuffer);
-	glDeleteBuffers(1, &m_CursorUVBuffer);
-}
-
-void setRenderingAreaQuad(float* quad, render_area area)
-{
-	// vertex
-	quad[0] = area.ndc_x;
-	quad[1] = area.ndc_y;
-	//tex coord
-	quad[2] = 0.0;
-	quad[3] = 0.0;
-	//vertex
-	quad[4] = area.ndc_x + area.ndc_width;
-	quad[5] = area.ndc_y;
-	//tex coord
-	quad[6] = 1.0;
-	quad[7] = 0.0;
-	//vertex
-	quad[8] = area.ndc_x;
-	quad[9] = area.ndc_y + area.ndc_height;
-	//tex coord
-	quad[10] = 0.0;
-	quad[11] = 1.0;
-
-	//other triangle
-	//vertex
-	quad[12] = area.ndc_x;
-	quad[13] = area.ndc_y + area.ndc_height;
-	//tex coord
-	quad[14] = 0.0;
-	quad[15] = 1.0;
-	//vertex
-	quad[16] = area.ndc_x + area.ndc_width;
-	quad[17] = area.ndc_y;
-	//tex coord
-	quad[18] = 1.0;
-	quad[19] = 0.0;
-	//vertex
-	quad[20] = area.ndc_x + area.ndc_width;
-	quad[21] = area.ndc_y + area.ndc_height;
-	//tex coord
-	quad[22] = 1.0;
-	quad[23] = 1.0;
+	glDeleteBuffers(1, &m_CursorBuffer);
 }

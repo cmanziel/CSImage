@@ -15,11 +15,11 @@ class SobelShader : public ComputeShader
 public:
 	//using ComputeShader::ComputeShader;
 
-	SobelShader(std::string source, unsigned int imageWidth, unsigned int imageHeight);
+	SobelShader(std::string source);
 	~SobelShader();
 
 	void UpdateSobelCanvas();
-	void UpdateInputs(unsigned int brushRadius, float* cursorPos);
+	void UpdateInputs(unsigned int brushRadius, unsigned int imageWidth, unsigned int imageHeight);
 
 	void Execute() override;
 private:

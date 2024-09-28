@@ -15,11 +15,11 @@ class BlurShader : public ComputeShader
 public:
 	//using ComputeShader::ComputeShader;
 
-	BlurShader(std::string source, unsigned int imageWidth, unsigned int imageHeight);
+	BlurShader(std::string source);
 	~BlurShader();
 
 	void UpdateBlurCanvas();
-	void UpdateInputs(unsigned int brushRadius, float* cursorPos);
+	void UpdateInputs(unsigned int brushRadius, unsigned int imageWidth, unsigned int imageHeight);
 
 	void Execute() override;
 private:
