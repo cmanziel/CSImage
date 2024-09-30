@@ -8,6 +8,11 @@
 #include "pnglib.h"
 #include "../Brush/Brush.h"
 
+#define RENDER_TEXTURE_UNIT 0
+#define CANVAS_TEXTURE_UNIT 1
+#define CURSOR_BUFFER_LOCATION 2
+#define EFFECTS_CANVAS_TEXTURE_UNIT 2
+
 typedef struct {
 	int x; // coordinates of the bottom-left conrner in window space: (0,0) is top-left corner
 	int y;
@@ -51,8 +56,10 @@ public:
 	float* GetRenderingQuad();
 	GLuint GetRenderTexture();
 	GLuint GetCanvasTexture();
+	GLuint GetEffectsCanvasTexture();
 
 	void InitRenderArea();
+	void BindImage();
 
 	bool IsCursorInside(cursor curs);
 	void Move(cursor curs);
@@ -70,6 +77,7 @@ private:
 	// for the shaders to draw properly keeping track of the changes
 	GLuint m_CanvasTexture;
 	GLuint m_RenderTexture;
+	GLuint m_EffectsCanvasTexture;
 
 	float m_RenderingQuad[24] = {
 		// 2 floats for postions coordinates, 2 for texture coordinates

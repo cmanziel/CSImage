@@ -8,10 +8,6 @@
 #include "../Shader/CanvasShader.h"
 #include "../Window/Window.h"
 
-#define RENDER_TEXTURE_UNIT 0
-#define CANVAS_TEXTURE_UNIT 1
-#define CURSOR_BUFFER_UNIT 2
-
 class Renderer
 {
 public:

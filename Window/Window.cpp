@@ -147,7 +147,12 @@ void Window::CursorMovement()
     //m_Brush->SetPosition(m_Cursor.x - m_RenderArea.x, (m_RenderArea.y + m_RenderArea.height) - m_Cursor.y);
     m_Brush->SetPosition(m_Cursor.x, m_Cursor.y); // position relative to the window's client area
 
+    // how can m_CurrentEditable be NULL and m_Brush->m_MouseState be STATE_DRAG at the same time 
+    // it's possible that cursor movement is called after a mouse callback for the mouse button press event was called
+    // in the time between the two calls the cursor left the image's render area, so state was set to drag 
+    //but the current editable was now NULL after being cheked in this function
     if (m_Brush->GetMouseState() == STATE_DRAG && m_CurrentEditable != NULL)
+    //if (m_Brush->GetMouseState() == STATE_DRAG)
         m_CurrentEditable->Move(m_Brush->GetPosition());
 }
 
