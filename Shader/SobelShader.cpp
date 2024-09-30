@@ -8,9 +8,6 @@ SobelShader::SobelShader(std::string csPath)
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_GridBuffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, MAX_BRUSH_RADIUS * MAX_BRUSH_RADIUS * sizeof(float) * 4, NULL, GL_DYNAMIC_DRAW);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, m_GridBuffer);
-
-	glGenTextures(1, &m_SobelCanvas);
-	glBindImageTexture(2, m_SobelCanvas, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
 }
 
 void SobelShader::UpdateInputs(unsigned int brushRadius, unsigned int imageWidth, unsigned int imageHeight)
@@ -49,5 +46,4 @@ void SobelShader::Execute()
 SobelShader::~SobelShader()
 {
 	glDeleteBuffers(1, &m_GridBuffer);
-	glDeleteTextures(1, &m_SobelCanvas);
 }

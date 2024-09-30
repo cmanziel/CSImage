@@ -36,11 +36,10 @@ Renderer::Renderer(Window* win)
 	glGenBuffers(1, &m_CursorBuffer);
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_CursorBuffer);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(cursorPos), cursorPos, GL_STATIC_DRAW);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, CURSOR_BUFFER_UNIT, m_CursorBuffer);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, CURSOR_BUFFER_LOCATION, m_CursorBuffer);
 
-	// execute the canvas shader for the initial image
-	glBindImageTexture(RENDER_TEXTURE_UNIT, m_CurrentEditable->GetRenderTexture(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
-	glBindImageTexture(CANVAS_TEXTURE_UNIT, m_CurrentEditable->GetCanvasTexture(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+	if (m_CurrentEditable != NULL)
+		m_CurrentEditable->BindImage();
 
 	render_area ra = m_CurrentEditable->GetRenderArea();
 	Shader::Use(m_CanvasShader.GetID());
@@ -62,15 +61,7 @@ void Renderer::SelectEditable()
 
 		if (m_CurrentEditable != NULL)
 		{
-			glBindImageTexture(RENDER_TEXTURE_UNIT, m_CurrentEditable->GetRenderTexture(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
-			glBindImageTexture(CANVAS_TEXTURE_UNIT, m_CurrentEditable->GetCanvasTexture(), 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
-
-			render_area ra = currentEditable->GetRenderArea();
-			Shader::Use(m_CanvasShader.GetID());
-			m_CanvasShader.SetDimensions(ra.width, ra.height);
-
-			// execute the current Editable's canvas shader dispatching the correct number of work groups based on its dimensions
-			m_CanvasShader.Execute();
+			m_CurrentEditable->BindImage();
 		}
 	}
 }
@@ -79,6 +70,10 @@ void Renderer::SelectShader()
 {
 	uint8_t mouseState = m_Window->GetBrush()->GetMouseState();
 	uint8_t brushState = m_Window->GetBrush()->GetDrawState();
+
+	// otherwise the current shader doesn't get to be NULL if the same draw state goes inactive then active again
+	if (brushState == STATE_INACTIVE)
+		m_CurrentShader = NULL;
 
 	if (mouseState != STATE_DRAG || m_CurrentEditable == NULL)
 		return;
@@ -126,8 +121,7 @@ void Renderer::SelectShader()
 		if (m_CurrentShader != &m_BlurShader)
 			m_BlurShader.UpdateBlurCanvas();
 		m_CurrentShader = &m_BlurShader;
-	}
-	break;
+	} break;
 	case STATE_INACTIVE:
 		m_CurrentShader = NULL;
 		break;

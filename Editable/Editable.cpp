@@ -12,7 +12,7 @@ Editable::Editable(char* image_path, unsigned int win_width, unsigned int win_he
     
     glGenTextures(1, &m_RenderTexture);
     glBindTexture(GL_TEXTURE_2D, m_RenderTexture);
-    // set format based on the image channels per pixel
+    // set arbitrary format for the render texture, eventually conversion will be done by OpenGL
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_Image.width, m_Image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     // for texture completeness
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -28,6 +28,14 @@ Editable::Editable(char* image_path, unsigned int win_width, unsigned int win_he
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     }
 
+    glGenTextures(1, &m_EffectsCanvasTexture);
+    glBindTexture(GL_TEXTURE_2D, m_EffectsCanvasTexture);
+    // fill with the same data as the canvas image to start
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, m_Image.width, m_Image.height, 0, m_CanvasData.pixel_format, m_CanvasData.pixel_type, m_Image.pixel_data);
+    // for texture completeness
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
@@ -35,6 +43,7 @@ Editable::~Editable()
 {
     glDeleteTextures(1, &m_RenderTexture);
     glDeleteTextures(1, &m_CanvasTexture);
+    glDeleteTextures(1, &m_EffectsCanvasTexture);
 }
 
 void Editable::SetUpImage(char* image_path)
@@ -80,6 +89,13 @@ void Editable::InitRenderArea()
 
     m_RenderArea.ndc_width = (float)m_RenderArea.width / m_WinWidth * 2.0f;
     m_RenderArea.ndc_height = (float)m_RenderArea.height / m_WinHeight * 2.0f;
+}
+
+void Editable::BindImage()
+{
+    glBindImageTexture(RENDER_TEXTURE_UNIT, m_RenderTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+    glBindImageTexture(CANVAS_TEXTURE_UNIT, m_CanvasTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+    glBindImageTexture(EFFECTS_CANVAS_TEXTURE_UNIT, m_EffectsCanvasTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
 }
 
 bool Editable::IsCursorInside(cursor curs)
@@ -179,6 +195,11 @@ GLuint Editable::GetRenderTexture()
 GLuint Editable::GetCanvasTexture()
 {
     return m_CanvasTexture;
+}
+
+GLuint Editable::GetEffectsCanvasTexture()
+{
+    return m_EffectsCanvasTexture;
 }
 
 void setCanvasData(canvas_data* cd, uint8_t cpp, uint8_t bit_depth)
