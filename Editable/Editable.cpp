@@ -1,6 +1,7 @@
 #include "Editable.h"
 
 void setCanvasData(canvas_data* cd, uint8_t cpp, uint8_t bit_depth);
+void setRenderingContainer(float* container, float* renderQuad);
 
 Editable::Editable(char* image_path, unsigned int win_width, unsigned int win_height, int weight)
 {
@@ -37,6 +38,8 @@ Editable::Editable(char* image_path, unsigned int win_width, unsigned int win_he
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    setRenderingContainer(m_RenderingContainer, m_RenderingQuad);
 }
 
 Editable::~Editable()
@@ -122,25 +125,6 @@ void Editable::Move(cursor curs)
     m_RenderArea.ndc_x = (float)m_RenderArea.x / m_RenderArea.width * 2.0f - 1.0f;
     m_RenderArea.ndc_y = (float)m_RenderArea.y / m_RenderArea.height * 2.0f - 1.0f;
 
-    //float t = m_RenderArea.ndc_y + m_RenderArea.ndc_height;
-    //float b = m_RenderArea.ndc_y;
-    //float l = m_RenderArea.ndc_x;
-    //float r = m_RenderArea.ndc_x + m_RenderArea.ndc_width;
-
-    //// change the rendering quad coordinates
-    //m_RenderingQuad[0] = l;
-    //m_RenderingQuad[1] = t;
-    //m_RenderingQuad[4] = l;
-    //m_RenderingQuad[5] = b;
-    //m_RenderingQuad[8] = r;
-    //m_RenderingQuad[9] = b;
-    //m_RenderingQuad[12] = l;
-    //m_RenderingQuad[13] = t;
-    //m_RenderingQuad[16] = r;
-    //m_RenderingQuad[17] = b;
-    //m_RenderingQuad[20] = r;
-    //m_RenderingQuad[21] = t;
-
     float ndc_delta_x = curs.drag_delta_x / m_RenderArea.width * 2.0f;
     float ndc_delta_y = curs.drag_delta_y / m_RenderArea.height * 2.0f;
 
@@ -156,6 +140,9 @@ void Editable::Move(cursor curs)
     m_RenderingQuad[17] += ndc_delta_y;
     m_RenderingQuad[20] += ndc_delta_x;
     m_RenderingQuad[21] += ndc_delta_y;
+
+    // change the container coordinates based on the image shift of position
+    setRenderingContainer(m_RenderingContainer, m_RenderingQuad);
 }
 
 void Editable::WindowToRenderArea(cursor curs)
@@ -185,6 +172,11 @@ int Editable::GetWeight()
 float* Editable::GetRenderingQuad()
 {
     return m_RenderingQuad;
+}
+
+float* Editable::GetRenderingContainer()
+{
+    return m_RenderingContainer;
 }
 
 GLuint Editable::GetRenderTexture()
@@ -229,4 +221,16 @@ void setCanvasData(canvas_data* cd, uint8_t cpp, uint8_t bit_depth)
         cd->pixel_type = GL_UNSIGNED_INT;
         break;
     }
+}
+
+void setRenderingContainer(float* ct, float* rq)
+{
+    ct[0] = rq[0]; ct[1] = rq[1];
+    ct[2] = rq[4]; ct[3] = rq[5];
+    ct[4] = rq[4]; ct[5] = rq[5];
+    ct[6] = rq[8]; ct[7] = rq[9];
+    ct[8] = rq[8]; ct[9] = rq[9];
+    ct[10] = rq[20]; ct[11] = rq[21];
+    ct[12] = rq[20]; ct[13] = rq[21];
+    ct[14] = rq[0]; ct[15] = rq[1];
 }

@@ -40,7 +40,9 @@ private:
 	GLuint m_CursorBuffer;
 	GLuint m_RACBuffer;
 
+	// these point to the current editable's respective fields
 	float* m_RenderingQuad; // ndc coordinates of the current editable being renderered
+	float* m_RenderingContainer; // ndc coordinates for the outline of the editable being rendered, rendered with GL_LINES drawing mode
 };
 
 #endif // !1

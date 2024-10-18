@@ -53,7 +53,10 @@ public:
 	editable_image GetImage();
 	render_area GetRenderArea();
 	int GetWeight();
+
 	float* GetRenderingQuad();
+	float* GetRenderingContainer();
+
 	GLuint GetRenderTexture();
 	GLuint GetCanvasTexture();
 	GLuint GetEffectsCanvasTexture();
@@ -88,6 +91,8 @@ private:
 		1.0f, -1.0f, 1.0f, 0.0f,
 		1.0f, 1.0f, 1.0f, 1.0f
 	}; // set of vertices to be passed to the shader, with the proper texture coordinates for each vertex
+
+	float m_RenderingContainer[16];
 };
 
 #endif // !EDITABLE_H
