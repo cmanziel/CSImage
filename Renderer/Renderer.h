@@ -23,10 +23,12 @@ private:
 	Window* m_Window;
 
 	DrawEraseShader m_DrawEraseShader;
-	VFShader m_VFShader;
 	CanvasShader m_CanvasShader;
 	SobelShader m_SobelShader;
 	BlurShader m_BlurShader;
+
+	VFShader m_VFShader;
+	VFShader m_RACShader; // render area container shader
 
 	ComputeShader* m_CurrentShader;
 	Editable* m_CurrentEditable;
@@ -34,9 +36,9 @@ private:
 /*	GLuint m_RenderTexture;
 	GLuint m_Canvas; */// image to be drawn onto
 
-	//GLuint m_Framebuffer;
 	GLuint m_ScreenQuadBuffer;
 	GLuint m_CursorBuffer;
+	GLuint m_RACBuffer;
 
 	float* m_RenderingQuad; // ndc coordinates of the current editable being renderered
 };

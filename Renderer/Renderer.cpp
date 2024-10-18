@@ -6,6 +6,7 @@ Renderer::Renderer(Window* win)
 	m_CanvasShader("Shader/shaders/canvas.comp"),
 	m_SobelShader("Shader/shaders/sobelShader.comp"),
 	m_BlurShader("Shader/shaders/blurShader.comp"),
+	m_RACShader("Shader/shaders/container.vert", "Shader/shaders/container.frag"),
 	m_CurrentEditable(win->GetCurrentEditable()),
 	m_CurrentShader(NULL),
 	m_Window(win)
@@ -20,7 +21,7 @@ Renderer::Renderer(Window* win)
 
 	glGenBuffers(1, &m_ScreenQuadBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, m_ScreenQuadBuffer);
-	glBufferData(GL_ARRAY_BUFFER, 24 * sizeof(float), m_RenderingQuad, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, 24 * sizeof(float), m_RenderingQuad, GL_DYNAMIC_DRAW);
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
@@ -42,6 +43,29 @@ Renderer::Renderer(Window* win)
 		m_CurrentEditable->BindImage();
 
 	render_area ra = m_CurrentEditable->GetRenderArea();
+	float* rq = m_CurrentEditable->GetRenderingQuad();
+
+	float containerVerts[16] = {
+			rq[0], rq[1],
+			rq[4], rq[5],
+			rq[4], rq[5],
+			rq[8], rq[9],
+			rq[8], rq[9],
+			rq[20], rq[21],
+			rq[20], rq[21],
+			rq[0], rq[1],
+	};
+
+	// create a buffer with the render area vertices as data
+	// enable the attribute at location 0, already enabled (the same attribute location is used for the screen quad)
+	// do the vertex specification for the attrbute
+	glGenBuffers(1, &m_RACBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, m_RACBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(containerVerts), containerVerts, GL_DYNAMIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 	Shader::Use(m_CanvasShader.GetID());
 	m_CanvasShader.SetDimensions(ra.width, ra.height);
 
@@ -72,11 +96,14 @@ void Renderer::SelectShader()
 	uint8_t brushState = m_Window->GetBrush()->GetDrawState();
 
 	// otherwise the current shader doesn't get to be NULL if the same draw state goes inactive then active again
-	if (brushState == STATE_INACTIVE)
-		m_CurrentShader = NULL;
+	//if (brushState == STATE_INACTIVE)
+	//	m_CurrentShader = NULL;
 
-	if (mouseState != STATE_DRAG || m_CurrentEditable == NULL)
+	if (mouseState != STATE_DRAG || m_CurrentEditable == NULL || brushState == STATE_INACTIVE)
+	{
+		m_CurrentShader = NULL;
 		return;
+	}
 
 	cursor curs = m_Window->GetCursor();
 
@@ -122,9 +149,9 @@ void Renderer::SelectShader()
 			m_BlurShader.UpdateBlurCanvas();
 		m_CurrentShader = &m_BlurShader;
 	} break;
-	case STATE_INACTIVE:
-		m_CurrentShader = NULL;
-		break;
+	//case STATE_INACTIVE:
+	//	m_CurrentShader = NULL;
+	//	break;
 	}
 }
 
@@ -149,6 +176,36 @@ void Renderer::Draw()
 		glBindTexture(GL_TEXTURE_2D, ed->GetRenderTexture());
 		glUniform1i(glGetUniformLocation(m_VFShader.GetID(), "tex"), 0);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
+
+		// use RenderAreaContainer shader
+		// draw 4 pairs of vertices as the container (dotted 1D texture for the look?)
+		
+		// do the vertex specification for attribute index = 0 according to the render area container data
+		Shader::Use(m_RACShader.GetID());
+
+		render_area ra = ed->GetRenderArea();
+		float* rq = ed->GetRenderingQuad();
+		float containerVerts[16] = {
+			rq[0], rq[1],
+			rq[4], rq[5],
+			rq[4], rq[5],
+			rq[8], rq[9],
+			rq[8], rq[9],
+			rq[20], rq[21],
+			rq[20], rq[21],
+			rq[0], rq[1],
+		};
+
+		glBindBuffer(GL_ARRAY_BUFFER, m_RACBuffer);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, 16 * sizeof(float), containerVerts);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0); // without redefining the vertex specification the attribute at index = 0 will get the data from the previousspecification which is the one done with the m_ScreenQuadBuffer buffer
+
+		glDrawArrays(GL_LINES, 0, 8);
+
+		// return to the attribute specification for the render area
+		glBindBuffer(GL_ARRAY_BUFFER, m_ScreenQuadBuffer);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
 	}
 }
 
